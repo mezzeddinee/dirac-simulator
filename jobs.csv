@@ -1,0 +1,7 @@
+job_id,tq,submit_time,runtime_min,required_all_tags,required_any_tags,cpu_seconds,wallclock_seconds,cores_used
+J1,TQ_A,2026-01-01T00:00:00,4,sw:root,site:SARA|site:NIKHEF,180,240,1
+J2,TQ_A,2026-01-01T00:01:00,3,sw:root,site:NIKHEF,120,180,1
+J3,TQ_B,2026-01-01T00:02:00,5,sw:root,site:SARA|site:IN2P3,240,300,1
+J4,TQ_B,2026-01-01T00:03:00,2,sw:root,site:IN2P3,90,120,1
+J5,TQ_A,2026-01-01T00:04:00,6,sw:root,site:SARA|site:NIKHEF,280,360,1
+J6,TQ_B,2026-01-01T00:06:00,3,sw:root,site:SARA|site:IN2P3,130,180,1

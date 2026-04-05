@@ -1,0 +1,4 @@
+site,max_pilots,startup_delay_min,jobs_per_pilot,e_fixed,latitude,longitude,avg_tdp_w,avg_total_cores,tags
+SARA,3,2,2,0.35,52.35584,4.95131,170,24,sw:root|cpu:x86_64
+NIKHEF,2,2,2,0.55,52.35584,4.95131,185,24,sw:root|cpu:x86_64
+IN2P3,2,3,2,0.45,45.1885,5.7245,175,24,sw:root|cpu:x86_64
