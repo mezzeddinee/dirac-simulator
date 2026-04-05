@@ -2,6 +2,79 @@
 
 Standalone project containing only the `simulator` package and CSV trace inputs.
 
+## What It Simulates
+
+- A discrete-time DIRAC-like pilot simulation.
+- One simulation step equals one minute.
+- Jobs arrive from trace data (`jobs.csv`) and are matched globally to idle compatible pilots.
+- New pilots are provisioned by a carbon/congestion policy when there is unmet compatible demand.
+- Carbon is computed from energy and CI (CSV-based CI by default, optional live CI API at job midpoint).
+
+## Input Files
+
+- `sites.csv`: site capacity, startup delay, jobs-per-pilot, static tags, average TDP/cores, coordinates.
+- `jobs.csv`: trace-style arrivals and job requirements (`required_all_tags`, `required_any_tags`) plus CPU/wallclock fields for energy model.
+- `site_ci.csv`: time-indexed CI values (gCO2/kWh), used as fallback/default source.
+
+## Simulation Step (1 Minute)
+
+At each tick, the simulator executes the following function chain in order:
+
+1. `release_jobs()`
+- Activates pending jobs whose `submit_time <= current_time`.
+- State change: `pending -> waiting`.
+
+2. `step_start()`
+- Decrements `startup_left_min` for `starting` pilots.
+- When delay reaches zero, pilots become `idle`.
+
+3. `step_match()`
+- Collects all idle pilots globally.
+- Collects waiting jobs globally, sorted by `(submit_time, job_id)`.
+- For each idle pilot, picks the first compatible waiting job:
+  - compatibility uses tag constraints:
+    - `required_all_tags` must all be present in pilot tags
+    - `required_any_tags` must intersect pilot tags (if non-empty)
+- On assignment:
+  - job becomes `running`
+  - `start_time` and assigned `site` are set
+  - job energy basis is computed (per-site average TDP/cores model)
+  - job CI is fixed at midpoint time (`submit_time + runtime/2`) via:
+    - live API provider if enabled, else CI CSV lookup
+
+4. `step_execute()`
+- Runs one minute of work for every running job.
+- Adds one-minute carbon increment:
+  - `job_carbon_kg += energy_per_min_kwh * assigned_ci_gco2_per_kwh / 1000`
+- Decrements `remaining_min`.
+- When a job completes:
+  - state change: `running -> done`
+  - `finish_time` set
+  - pilot `jobs_left` decremented
+  - pilot returns to `idle` or is retired if `jobs_left == 0`
+
+5. `step_schedule()`
+- Builds waiting-job set and computes compatibility-aware unmet demand.
+- Scores sites with:
+  - `score = -beta * E_norm + gamma * D_norm`
+  - `E`: site fixed carbon score (`e_fixed`)
+  - `D`: congestion from running/idle/starting pilots
+- Submits new pilots only on sites that can satisfy currently unmet jobs and have capacity.
+
+6. `current_time += tick`
+- Advances simulation clock by one minute.
+
+## Core Modules
+
+- `main.py`: entrypoint
+- `app.py`: wiring and run loop
+- `simulator.py`: per-tick state machine
+- `policy.py`: compatibility-aware carbon/congestion pilot provisioning
+- `ci_provider.py`: midpoint CI HTTP client with cache/fallback
+- `models.py`: `Job`, `Pilot`, `Site` dataclasses
+- `csv_io.py`: CSV loaders
+- `metrics.py`: KPI summary (wait/turnaround percentiles, average carbon/job)
+
 ## Quick start
 
 ```bash
