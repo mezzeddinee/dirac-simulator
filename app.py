@@ -23,10 +23,17 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
     use_live_ci = os.getenv("SIMPLE4_USE_LIVE_CI", "0").lower() in {"1", "true", "yes"}
     ci_provider = None
     if use_live_ci:
-        token = os.getenv("SIMPLE4_CI_TOKEN", "")
-        api_base = os.getenv("SIMPLE4_CI_API_BASE", "")
-        if token and api_base:
-            ci_provider = MidpointCIProvider(token=token, kpi_api_base=api_base)
+        conf_path = Path(os.getenv("SIMPLE4_CI_CONF", str(base / "cim.conf")))
+        token = os.getenv("SIMPLE4_CI_TOKEN")
+        email = os.getenv("CIM_EMAIL")
+        password = os.getenv("CIM_PASSWORD")
+        if conf_path.exists():
+            ci_provider = MidpointCIProvider.from_config(
+                conf_path=conf_path,
+                email=email,
+                password=password,
+                token=token,
+            )
 
     sim = ReplaySimulator(
         sites=sites,

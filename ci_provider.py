@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import configparser
 import json
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import requests
@@ -10,18 +13,85 @@ import requests
 class MidpointCIProvider:
     def __init__(
         self,
-        token: str,
-        kpi_api_base: str,
+        token: Optional[str] = None,
+        kpi_api_base: str = "",
+        cim_api_base: str = "",
+        email: Optional[str] = None,
+        password: Optional[str] = None,
         default_pue: float = 1.4,
         fallback_ci: float = 300.0,
         timeout_s: float = 5.0,
+        token_max_age_h: float = 24.0,
     ):
         self.token = token
+        self._token_ts: Optional[float] = None
         self.base = kpi_api_base.rstrip("/")
+        self.cim_api_base = cim_api_base.rstrip("/")
+        self.email = email
+        self.password = password
         self.default_pue = default_pue
         self.fallback_ci = fallback_ci
         self.timeout_s = timeout_s
+        self.token_max_age_h = token_max_age_h
         self.cache: Dict[Tuple[str, datetime], float] = {}
+
+    @classmethod
+    def from_config(
+        cls,
+        conf_path: Path,
+        email: Optional[str],
+        password: Optional[str],
+        token: Optional[str] = None,
+    ) -> "MidpointCIProvider":
+        cfg = configparser.ConfigParser()
+        cfg.read(conf_path)
+        cim_api_base = cfg.get("CIM", "API_BASE", fallback="").strip()
+        kpi_api_base = cfg.get("KPI", "API_BASE", fallback="").strip()
+        default_pue = cfg.getfloat("Defaults", "PUE", fallback=1.4)
+        fallback_ci = cfg.getfloat("Defaults", "CI", fallback=300.0)
+        ci_timeout_s = cfg.getfloat("Runtime", "CI_TIMEOUT_S", fallback=5.0)
+        token_max_age_h = cfg.getfloat("Runtime", "TOKEN_MAX_AGE_H", fallback=24.0)
+        return cls(
+            token=token,
+            kpi_api_base=kpi_api_base,
+            cim_api_base=cim_api_base,
+            email=email,
+            password=password,
+            default_pue=default_pue,
+            fallback_ci=fallback_ci,
+            timeout_s=ci_timeout_s,
+            token_max_age_h=token_max_age_h,
+        )
+
+    def _get_token(self) -> Optional[str]:
+        if self.token and self._token_ts is not None:
+            age_h = (time.time() - self._token_ts) / 3600.0
+            if age_h < self.token_max_age_h:
+                return self.token
+
+        if self.token and self._token_ts is None:
+            self._token_ts = time.time()
+            return self.token
+
+        if not self.cim_api_base or not self.email or not self.password:
+            return None
+
+        try:
+            resp = requests.post(
+                f"{self.cim_api_base}/token",
+                json={"email": self.email, "password": self.password},
+                timeout=self.timeout_s,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            token = data.get("access_token")
+            if not token:
+                return None
+            self.token = token
+            self._token_ts = time.time()
+            return token
+        except requests.exceptions.RequestException:
+            return None
 
     def _hour_bucket(self, ts: datetime) -> datetime:
         if ts.tzinfo is None:
@@ -60,10 +130,10 @@ class MidpointCIProvider:
             "metric_id": f"{site_name}_{bucket.isoformat()}",
             "wattnet_params": {"granularity": "hour"},
         }
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
+        token = self._get_token()
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         try:
             resp = requests.post(
                 f"{self.base}/ci",

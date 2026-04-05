@@ -89,7 +89,11 @@ python3 -m simulator.main
 
 ```bash
 export SIMPLE4_USE_LIVE_CI=1
-export SIMPLE4_CI_TOKEN="your_token"
-export SIMPLE4_CI_API_BASE="https://.../gd-kpi-api/v1"
+export CIM_EMAIL="your_email"
+export CIM_PASSWORD="your_password"
+# optional override (default: ./cim.conf)
+# export SIMPLE4_CI_CONF="/path/to/cim.conf"
+# optional: provide token directly instead of email/password
+# export SIMPLE4_CI_TOKEN="your_token"
 python3 -m simulator.main
 ```
