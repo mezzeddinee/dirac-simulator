@@ -20,11 +20,11 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
     jobs = load_jobs(base / "jobs.csv")
     ci = load_ci(base / "site_ci.csv")
 
-    use_live_ci = os.getenv("SIMPLE4_USE_LIVE_CI", "0").lower() in {"1", "true", "yes"}
+    use_live_ci = os.getenv("SIMULATOR_USE_LIVE_CI", "0").lower() in {"1", "true", "yes"}
     ci_provider = None
     if use_live_ci:
-        conf_path = Path(os.getenv("SIMPLE4_CI_CONF", str(base / "cim.conf")))
-        token = os.getenv("SIMPLE4_CI_TOKEN")
+        conf_path = Path(os.getenv("SIMULATOR_CI_CONF", str(base / "cim.conf")))
+        token = os.getenv("SIMULATOR_CI_TOKEN")
         email = os.getenv("CIM_EMAIL")
         password = os.getenv("CIM_PASSWORD")
         if conf_path.exists():
