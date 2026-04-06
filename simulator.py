@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -65,7 +66,8 @@ class ReplaySimulator:
         return self.policy.compatible(pilot.tags, job)
 
     def ci_for_job(self, site: Site, job: Job) -> float:
-        midpoint = job.submit_time + timedelta(minutes=(job.runtime_min / 2.0))
+        runtime_for_midpoint = job.assigned_runtime_min if job.assigned_runtime_min > 0 else job.runtime_min
+        midpoint = job.submit_time + timedelta(minutes=(runtime_for_midpoint / 2.0))
         if self.ci_provider is not None:
             return self.ci_provider.get_ci(
                 site_name=site.name,
@@ -75,9 +77,20 @@ class ReplaySimulator:
             )
         return self.ci_at(site.name, midpoint)
 
+    def derive_job_runtime_for_site(self, job: Job, site: Site) -> Tuple[float, float, int]:
+        perf = float(site.perf_hs06)
+        if perf <= 0.0:
+            return 0.0, 0.0, 0
+        cpu_seconds_sim = float(job.norm_cpu_seconds) / perf
+        wc_ratio = float(site.avg_wallclock_cpu_ratio)
+        if wc_ratio <= 0.0:
+            wc_ratio = 1.0
+        wallclock_seconds_sim = max(cpu_seconds_sim * wc_ratio, 60.0)
+        runtime_min_sim = max(1, int(math.ceil(wallclock_seconds_sim / 60.0)))
+        return cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim
+
     def compute_energy_kwh(self, job: Job, site: Site) -> float:
-        cpu_seconds = float(job.cpu_seconds)
-        wallclock_seconds = float(job.wallclock_seconds)
+        cpu_seconds, wallclock_seconds, _ = self.derive_job_runtime_for_site(job, site)
         total_cores = int(site.avg_total_cores)
         cores_used = int(job.cores_used)
         tdp = float(site.avg_tdp_w)
@@ -109,9 +122,15 @@ class ReplaySimulator:
             picked.start_time = self.current_time
             picked.site = p.site
             site = self.sites[p.site]
+            cpu_s, wall_s, runtime_s = self.derive_job_runtime_for_site(picked, site)
+            picked.assigned_cpu_seconds = cpu_s
+            picked.assigned_wallclock_seconds = wall_s
+            picked.assigned_runtime_min = runtime_s
+            if runtime_s > 0:
+                picked.remaining_min = runtime_s
             total_kwh = self.compute_energy_kwh(picked, site)
-            if picked.runtime_min > 0:
-                picked.energy_per_min_kwh = total_kwh / float(picked.runtime_min)
+            if picked.assigned_runtime_min > 0:
+                picked.energy_per_min_kwh = total_kwh / float(picked.assigned_runtime_min)
             else:
                 picked.energy_per_min_kwh = 0.0
             picked.assigned_ci_gco2_per_kwh = self.ci_for_job(site, picked)

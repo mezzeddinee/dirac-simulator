@@ -23,6 +23,8 @@ def make_site(name: str, max_pilots: int = 2, e_fixed: float = 0.5) -> Site:
         longitude=0.0,
         avg_tdp_w=150.0,
         avg_total_cores=12,
+        perf_hs06=1.0,
+        avg_wallclock_cpu_ratio=1.0,
         tags={f"site:{name}", "sw:root", "cpu:x86_64"},
     )
 
@@ -35,8 +37,7 @@ def make_job(job_id: str, any_tags=None, all_tags=None) -> Job:
         runtime_min=2,
         required_all_tags=set(all_tags or []),
         required_any_tags=set(any_tags or []),
-        cpu_seconds=60,
-        wallclock_seconds=120,
+        norm_cpu_seconds=60,
         cores_used=1,
     )
 

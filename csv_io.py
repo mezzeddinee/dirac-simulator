@@ -34,6 +34,8 @@ def load_sites(path: Path) -> Dict[str, Site]:
                 longitude=float(row["longitude"]) if row.get("longitude") else None,
                 avg_tdp_w=float(row.get("avg_tdp_w", 150.0)),
                 avg_total_cores=int(row.get("avg_total_cores", 12)),
+                perf_hs06=float(row.get("perf_hs06", 1.0)),
+                avg_wallclock_cpu_ratio=float(row.get("avg_wallclock_cpu_ratio", 1.0)),
                 tags=tags,
             )
     return sites
@@ -51,8 +53,7 @@ def load_jobs(path: Path) -> List[Job]:
                     runtime_min=int(row["runtime_min"]),
                     required_all_tags=parse_tags(row.get("required_all_tags", "")),
                     required_any_tags=parse_tags(row.get("required_any_tags", "")),
-                    cpu_seconds=float(row.get("cpu_seconds", 0.0)),
-                    wallclock_seconds=float(row.get("wallclock_seconds", 0.0)),
+                    norm_cpu_seconds=float(row.get("norm_cpu_seconds", row.get("cpu_seconds", 0.0))),
                     cores_used=int(row.get("cores_used", 1)),
                 )
             )

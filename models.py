@@ -13,8 +13,7 @@ class Job:
     runtime_min: int
     required_all_tags: Set[str] = field(default_factory=set)
     required_any_tags: Set[str] = field(default_factory=set)
-    cpu_seconds: float = 0.0
-    wallclock_seconds: float = 0.0
+    norm_cpu_seconds: float = 0.0
     cores_used: int = 1
 
     status: str = "pending"  # pending/waiting/running/done
@@ -25,6 +24,9 @@ class Job:
     carbon_kg: float = 0.0
     energy_per_min_kwh: float = 0.0
     assigned_ci_gco2_per_kwh: float = 0.0
+    assigned_cpu_seconds: float = 0.0
+    assigned_wallclock_seconds: float = 0.0
+    assigned_runtime_min: int = 0
 
     def activate(self) -> None:
         self.status = "waiting"
@@ -53,6 +55,8 @@ class Site:
     longitude: Optional[float]
     avg_tdp_w: float
     avg_total_cores: int
+    perf_hs06: float
+    avg_wallclock_cpu_ratio: float
     tags: Set[str]
     pilots: list[Pilot] = field(default_factory=list)
 

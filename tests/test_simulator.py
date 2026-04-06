@@ -23,6 +23,8 @@ def make_site(name: str, startup: int = 0, jobs_per_pilot: int = 1) -> Site:
         longitude=4.0,
         avg_tdp_w=180.0,
         avg_total_cores=24,
+        perf_hs06=1.0,
+        avg_wallclock_cpu_ratio=1.0,
         tags={f"site:{name}", "sw:root", "cpu:x86_64"},
     )
 
@@ -35,8 +37,7 @@ def make_job(job_id: str, submit: datetime) -> Job:
         runtime_min=2,
         required_all_tags={"sw:root"},
         required_any_tags={"site:SARA"},
-        cpu_seconds=90.0,
-        wallclock_seconds=120.0,
+        norm_cpu_seconds=90.0,
         cores_used=1,
     )
 
@@ -57,9 +58,9 @@ class SimulatorTests(unittest.TestCase):
         sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], ci_series={}, tick_minutes=1)
 
         energy = sim.compute_energy_kwh(job, site)
-        # E=((1-f)*CPU + f*Wall) * (cores_used/total_cores) * TDP / 3_600_000
-        # f=0.4, CPU=90, Wall=120, cores=1/24, TDP=180 => 0.0002125
-        self.assertAlmostEqual(0.0002125, energy, places=9)
+        # derived wallclock=max(cpu,60)=90
+        # E=((1-f)*90 + f*90) * (1/24) * 180 / 3_600_000 = 0.0001875
+        self.assertAlmostEqual(0.0001875, energy, places=9)
 
     def test_ci_for_job_uses_midpoint_with_provider(self):
         site = make_site("SARA")
