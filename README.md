@@ -59,10 +59,10 @@ At each tick, the simulator executes the following function chain in order:
 
 5. `step_schedule()`
 - Builds waiting-job set and computes compatibility-aware unmet demand.
-- Scores sites with:
-  - `score = -beta * E_norm + gamma * D_norm`
+- Current first-trial ranking uses only `E` (carbon signal):
   - `E`: site fixed carbon score (`e_fixed`)
-  - `D`: congestion from running/idle/starting pilots
+  - sites are sorted by ascending `E_norm` (lower is greener/better)
+- `D` (delay/congestion signal) exists in code but is currently disabled/commented for this trial.
 - Submits new pilots only on sites that can satisfy currently unmet jobs and have capacity.
 
 6. `current_time += tick`
@@ -101,3 +101,13 @@ export CIM_PASSWORD="your_password"
 # export SIMULATOR_CI_TOKEN="your_token"
 python3 main.py
 ```
+
+## Current Policy Mode
+
+At the moment, site ranking is intentionally simplified:
+
+- Active: `E` only (carbon-efficiency proxy from `e_fixed`)
+- Inactive (kept in code for later): `D` delay/congestion term and combined score
+  - `score = -beta * E_norm + gamma * D_norm`
+
+This keeps the first experimental version easy to interpret before re-enabling multi-signal scoring.
