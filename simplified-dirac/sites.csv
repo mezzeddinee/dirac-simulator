@@ -1,0 +1,4 @@
+site,max_running_jobs,e_fixed,latitude,longitude,avg_tdp_w,avg_total_cores,perf_hs06,avg_wallclock_cpu_ratio
+SARA,4,0.30,52.35584,4.95131,170,24,1.15,1.15
+IN2P3,3,0.42,45.1885,5.7245,175,24,1.00,1.25
+NIKHEF,2,0.58,52.35584,4.95131,185,24,0.90,1.35

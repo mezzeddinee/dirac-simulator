@@ -1,0 +1,149 @@
+import unittest
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
+import sys
+
+# Allow running tests from any cwd (IDE or CLI).
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ci_provider import MidpointCIProvider
+from models import Job, Site
+from policy import ReplayCarbonPolicy
+from simulator import ReplaySimulator
+
+
+def make_site(name: str, cores: int = 24, tdp: float = 180.0) -> Site:
+    return Site(
+        name=name,
+        max_running_jobs=2,
+        e_fixed=0.5,
+        latitude=52.0,
+        longitude=4.0,
+        avg_tdp_w=tdp,
+        avg_total_cores=cores,
+        perf_hs06=1.0,
+        avg_wallclock_cpu_ratio=1.0,
+        tags={f"site:{name}", "sw:root", "cpu:x86_64"},
+    )
+
+
+def make_job(job_id: str, submit: datetime, runtime_min: int = 20, any_tags=None, norm_cpu_seconds: float = 900.0) -> Job:
+    return Job(
+        job_id=job_id,
+        tq="TQ",
+        submit_time=submit,
+        runtime_min=runtime_min,
+        required_all_tags={"sw:root"},
+        required_any_tags=set(any_tags or {"site:SARA"}),
+        norm_cpu_seconds=norm_cpu_seconds,
+        cores_used=1,
+    )
+
+
+class _Resp:
+    def __init__(self, ci):
+        self._ci = ci
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"ci_gco2_per_kwh": self._ci}
+
+
+class EdgeCaseTests(unittest.TestCase):
+    def test_ci_provider_half_hour_bucket_cache(self):
+        provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example")
+
+        with patch("ci_provider.requests.post", side_effect=[_Resp(111.0), _Resp(222.0)]) as post:
+            ci1 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), 52.0, 4.0)
+            ci2 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 25, 0), 52.0, 4.0)
+            ci3 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 35, 0), 52.0, 4.0)
+
+        self.assertEqual(111.0, ci1)
+        self.assertEqual(111.0, ci2)  # same half-hour bucket -> cache hit
+        self.assertEqual(222.0, ci3)  # next half-hour bucket -> new HTTP call
+        self.assertEqual(2, post.call_count)
+
+    def test_ci_provider_missing_coords_uses_fallback_without_http(self):
+        provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example", fallback_ci=333.0)
+
+        with patch("ci_provider.requests.post") as post:
+            ci1 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), None, None)
+            ci2 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 10, 0), None, None)
+
+        self.assertEqual(333.0, ci1)
+        self.assertEqual(333.0, ci2)
+        self.assertEqual(0, post.call_count)
+
+    def test_policy_schedule_places_job_even_without_matching_tags(self):
+        policy = ReplayCarbonPolicy()
+        sites = {"SARA": make_site("SARA")}
+        jobs = [make_job("J1", datetime(2026, 1, 1, 0, 0, 0), any_tags={"site:NIKHEF"})]
+
+        submissions = policy.schedule(jobs, sites)
+        self.assertEqual([("SARA", 1)], submissions)
+
+    def test_simulator_ci_for_job_uses_midpoint_csv_lookup(self):
+        site = make_site("SARA")
+        job = make_job("J1", datetime(2026, 1, 1, 12, 10, 0), runtime_min=20)
+        sim = ReplaySimulator(
+            sites={"SARA": site},
+            jobs=[job],
+            ci_series={
+                "SARA": [
+                    (datetime(2026, 1, 1, 12, 0, 0), 100.0),
+                    (datetime(2026, 1, 1, 12, 30, 0), 200.0),
+                ]
+            },
+            tick_minutes=1,
+        )
+
+        # midpoint = 12:20 -> should pick latest <= 12:20 => 100.0
+        self.assertEqual(100.0, sim.ci_for_job(site, job))
+
+    def test_compute_energy_guard_conditions(self):
+        site_zero_cores = make_site("SARA", cores=0)
+        job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0))
+        sim = ReplaySimulator(sites={"SARA": site_zero_cores}, jobs=[job], ci_series={}, tick_minutes=1)
+        self.assertEqual(0.0, sim.compute_energy_kwh(job, site_zero_cores))
+
+        site_ok = make_site("SARA", cores=24)
+        job_zero_norm = make_job("J2", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=0.0)
+        # wallclock is floored to 60s, so with norm=0 this is still finite and >0.
+        self.assertGreater(sim.compute_energy_kwh(job_zero_norm, site_ok), 0.0)
+
+        site_zero_perf = make_site("SARA", cores=24)
+        site_zero_perf.perf_hs06 = 0.0
+        self.assertEqual(0.0, sim.compute_energy_kwh(job, site_zero_perf))
+
+    def test_release_jobs_boundary_exact_current_time(self):
+        site = make_site("SARA")
+        now = datetime(2026, 1, 1, 0, 0, 0)
+        j_now = make_job("J_now", now, runtime_min=1)
+        j_later = make_job("J_later", datetime(2026, 1, 1, 0, 1, 0), runtime_min=1)
+        sim = ReplaySimulator(sites={"SARA": site}, jobs=[j_now, j_later], ci_series={}, tick_minutes=1)
+        sim.current_time = now
+
+        sim.release_jobs()
+        self.assertEqual("waiting", j_now.status)
+        self.assertEqual("pending", j_later.status)
+
+    def test_runtime_derivation_uses_site_wallclock_cpu_ratio(self):
+        site = make_site("SARA")
+        site.perf_hs06 = 2.0
+        site.avg_wallclock_cpu_ratio = 1.5
+        job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=600.0)
+        sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], ci_series={}, tick_minutes=1)
+
+        cpu_s, wall_s, runtime_m = sim.derive_job_runtime_for_site(job, site)
+        self.assertEqual(300.0, cpu_s)   # 600 / 2.0
+        self.assertEqual(450.0, wall_s)  # 300 * 1.5
+        self.assertEqual(8, runtime_m)   # ceil(450/60) = 8
+
+
+if __name__ == "__main__":
+    unittest.main()
