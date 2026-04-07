@@ -22,7 +22,7 @@ class Job:
     site: Optional[str] = None
     remaining_min: int = 0
     carbon_kg: float = 0.0
-    energy_per_min_kwh: float = 0.0
+    total_energy_kwh: float = 0.0
     assigned_ci_gco2_per_kwh: float = 0.0
     assigned_cpu_seconds: float = 0.0
     assigned_wallclock_seconds: float = 0.0

@@ -23,9 +23,16 @@ class ReplayCarbonPolicy:
         return {k: (v - lo) / (hi - lo) for k, v in d.items()}
 
     def estimate_e(self, sites: Dict[str, Site]) -> Dict[str, float]:
+        # E: carbon-efficiency proxy per site (static in this version).
+        # Lower E means "greener / more carbon-efficient" and is preferred.
+        # It comes from site.e_fixed and is normalized before ranking.
         return {name: s.e_fixed for name, s in sites.items()}
 
     def estimate_d(self, sites: Dict[str, Site]) -> Dict[str, float]:
+        # D: delay/congestion signal per site.
+        # Intuition: if many pilots are already waiting/starting relative to running,
+        # new jobs are more likely to wait or see slower pickup.
+        # Higher D means "more congested / higher expected delay".
         d = {}
         for name, s in sites.items():
             running = len(s.running())
@@ -65,11 +72,18 @@ class ReplayCarbonPolicy:
             return []
 
         e_norm = self.normalize(self.estimate_e(sites))
-        d_norm = self.normalize(self.estimate_d(sites))
-        scored = sorted(
-            sites.values(),
-            key=lambda s: -self.beta * e_norm[s.name] + self.gamma * d_norm[s.name],
-        )
+        # First-trial simplified ranking: sort only by E (lower is better).
+        scored = sorted(sites.values(), key=lambda s: e_norm[s.name])
+
+        # Previous combined E+D scoring (kept for later use):
+        # score = -beta * E + gamma * D
+        # -beta * E pushes scheduling toward carbon-efficient sites
+        # +gamma * D penalizes sites where jobs are expected to wait more
+        # d_norm = self.normalize(self.estimate_d(sites))
+        # scored = sorted(
+        #     sites.values(),
+        #     key=lambda s: -self.beta * e_norm[s.name] + self.gamma * d_norm[s.name],
+        # )
 
         submissions: List[Tuple[str, int]] = []
         for site in scored:

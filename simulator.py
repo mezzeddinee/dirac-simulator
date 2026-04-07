@@ -78,13 +78,21 @@ class ReplaySimulator:
         return self.ci_at(site.name, midpoint)
 
     def derive_job_runtime_for_site(self, job: Job, site: Site) -> Tuple[float, float, int]:
+        # perf_hs06 is a site speed factor:
+        # higher perf => less CPU seconds needed for the same normalized workload.
         perf = float(site.perf_hs06)
         if perf <= 0.0:
             return 0.0, 0.0, 0
         cpu_seconds_sim = float(job.norm_cpu_seconds) / perf
+
+        # avg_wallclock_cpu_ratio approximates site-level slowdown/overhead:
+        # wallclock ~= cpu_seconds * ratio.
+        # ratio > 1 models throttling/contention/I/O effects.
         wc_ratio = float(site.avg_wallclock_cpu_ratio)
         if wc_ratio <= 0.0:
             wc_ratio = 1.0
+
+        # Enforce minimum 60s wallclock so derived runtime is never below one tick.
         wallclock_seconds_sim = max(cpu_seconds_sim * wc_ratio, 60.0)
         runtime_min_sim = max(1, int(math.ceil(wallclock_seconds_sim / 60.0)))
         return cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim
@@ -122,18 +130,16 @@ class ReplaySimulator:
             picked.start_time = self.current_time
             picked.site = p.site
             site = self.sites[p.site]
-            cpu_s, wall_s, runtime_s = self.derive_job_runtime_for_site(picked, site)
-            picked.assigned_cpu_seconds = cpu_s
-            picked.assigned_wallclock_seconds = wall_s
-            picked.assigned_runtime_min = runtime_s
-            if runtime_s > 0:
-                picked.remaining_min = runtime_s
+            cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim = self.derive_job_runtime_for_site(picked, site)
+            picked.assigned_cpu_seconds = cpu_seconds_sim
+            picked.assigned_wallclock_seconds = wallclock_seconds_sim
+            picked.assigned_runtime_min = runtime_min_sim
+            if runtime_min_sim > 0:
+                picked.remaining_min = runtime_min_sim
             total_kwh = self.compute_energy_kwh(picked, site)
-            if picked.assigned_runtime_min > 0:
-                picked.energy_per_min_kwh = total_kwh / float(picked.assigned_runtime_min)
-            else:
-                picked.energy_per_min_kwh = 0.0
+            picked.total_energy_kwh = total_kwh
             picked.assigned_ci_gco2_per_kwh = self.ci_for_job(site, picked)
+            picked.carbon_kg = (picked.total_energy_kwh * picked.assigned_ci_gco2_per_kwh) / 1000.0
             waiting.remove(picked)
 
     def step_execute(self) -> None:
@@ -143,7 +149,6 @@ class ReplaySimulator:
                 if j is None:
                     continue
 
-                j.carbon_kg += (j.energy_per_min_kwh * j.assigned_ci_gco2_per_kwh) / 1000.0
                 j.remaining_min -= 1
 
                 if j.remaining_min <= 0:

@@ -48,8 +48,8 @@ At each tick, the simulator executes the following function chain in order:
 
 4. `step_execute()`
 - Runs one minute of work for every running job.
-- Adds one-minute carbon increment:
-  - `job_carbon_kg += energy_per_min_kwh * assigned_ci_gco2_per_kwh / 1000`
+- Carbon is precomputed at assignment time (one-shot):
+  - `job_carbon_kg = total_energy_kwh * assigned_ci_gco2_per_kwh / 1000`
 - Decrements `remaining_min`.
 - When a job completes:
   - state change: `running -> done`
