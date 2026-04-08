@@ -1,4 +1,4 @@
-# simple5
+# simplified dirac simulation
 
 Simplified first version of the simulator:
 - No pilot objects.
@@ -42,7 +42,7 @@ Simplified first version of the simulator:
 ## Run
 
 ```bash
-cd /home/mezzeddi/PycharmProjects/testsim/simple5
+cd /home/mezzeddi/PycharmProjects/testsim/dirac-simulator/simplified-dirac
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
@@ -52,6 +52,6 @@ python3 main.py
 ## Tests
 
 ```bash
-cd /home/mezzeddi/PycharmProjects/testsim/simple5
+cd /home/mezzeddi/PycharmProjects/testsim/dirac-simulator/simplified-dirac
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
