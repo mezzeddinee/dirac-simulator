@@ -35,6 +35,13 @@ class MidpointCIProvider:
         self.token_max_age_h = token_max_age_h
         self.cache: Dict[Tuple[str, datetime], float] = {}
 
+    def _cache_set(self, site_name: str, bucket: datetime, ci: float) -> None:
+        # Forward-only simulation: keep only the latest bucket per site.
+        stale = [k for k in self.cache if k[0] == site_name and k[1] < bucket]
+        for k in stale:
+            del self.cache[k]
+        self.cache[(site_name, bucket)] = ci
+
     @classmethod
     def from_config(
         cls,
@@ -114,7 +121,7 @@ class MidpointCIProvider:
             return self.cache[key]
 
         if latitude is None or longitude is None:
-            self.cache[key] = self.fallback_ci
+            self._cache_set(site_name, bucket, self.fallback_ci)
             return self.fallback_ci
 
         start = bucket.isoformat().replace("+00:00", "Z")
@@ -151,5 +158,5 @@ class MidpointCIProvider:
         ):
             ci = self.fallback_ci
 
-        self.cache[key] = ci
+        self._cache_set(site_name, bucket, ci)
         return ci
