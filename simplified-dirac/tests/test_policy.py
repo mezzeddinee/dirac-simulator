@@ -51,7 +51,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(1, len(unmet))
         self.assertEqual("J2", unmet[0].job_id)
 
-    def test_schedule_places_on_best_e_site(self):
+    def test_schedule_places_on_highest_greenscore_site(self):
         policy = ReplayCarbonPolicy()
         sites = {
             "SARA": make_site("SARA", max_running_jobs=1, e_fixed=0.1),
@@ -60,7 +60,7 @@ class PolicyTests(unittest.TestCase):
         jobs = [make_job("J1")]
 
         submissions = policy.schedule(jobs, sites)
-        self.assertEqual([("SARA", 1)], submissions)
+        self.assertEqual([("NIKHEF", 1)], submissions)
 
 
 if __name__ == "__main__":

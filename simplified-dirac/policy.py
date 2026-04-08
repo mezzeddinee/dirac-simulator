@@ -9,29 +9,9 @@ except ImportError:  # direct script-style execution fallback
 
 
 class ReplayCarbonPolicy:
-    def __init__(self, beta: float = 0.5, gamma: float = 0.5):
-        self.beta = beta
-        self.gamma = gamma
-
-    def normalize(self, d: Dict[str, float]) -> Dict[str, float]:
-        vals = list(d.values())
-        if max(vals) == min(vals):
-            return {k: 0.0 for k in d}
-        lo = min(vals)
-        hi = max(vals)
-        return {k: (v - lo) / (hi - lo) for k, v in d.items()}
-
     def estimate_e(self, sites: Dict[str, Site]) -> Dict[str, float]:
-        # E: carbon-efficiency proxy per site (lower is better).
+        # E: greenscore proxy per site (higher is better).
         return {name: s.e_fixed for name, s in sites.items()}
-
-    def estimate_d(self, sites: Dict[str, Site]) -> Dict[str, float]:
-        # D: optional delay/congestion signal based on occupied capacity.
-        d: Dict[str, float] = {}
-        for name, s in sites.items():
-            cap = max(1, s.max_running_jobs)
-            d[name] = float(len(s.running_jobs)) / float(cap)
-        return d
 
     def unmet_jobs(self, waiting_jobs: List[Job], sites: Dict[str, Site]) -> List[Job]:
         slots = {name: s.available_slots() for name, s in sites.items()}
@@ -55,17 +35,9 @@ class ReplayCarbonPolicy:
         if demand <= 0:
             return []
 
-        e_norm = self.normalize(self.estimate_e(sites))
-        # First-trial simplified ranking: sort only by E (lower is better).
-        scored = sorted(sites.values(), key=lambda s: e_norm[s.name])
-
-        # Previous combined E+D scoring (kept for later use):
-        # score = -beta * E + gamma * D
-        # d_norm = self.normalize(self.estimate_d(sites))
-        # scored = sorted(
-        #     sites.values(),
-        #     key=lambda s: -self.beta * e_norm[s.name] + self.gamma * d_norm[s.name],
-        # )
+        e_score = self.estimate_e(sites)
+        # First-trial simplified ranking: use e_score directly as greenscore (higher is better).
+        scored = sorted(sites.values(), key=lambda s: e_score[s.name], reverse=True)
 
         submissions: List[Tuple[str, int]] = []
         for site in scored:

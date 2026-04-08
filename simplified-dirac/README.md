@@ -4,7 +4,7 @@ Simplified first version of the simulator:
 - No pilot objects.
 - Jobs are assigned directly to sites.
 - Each site has a max number of concurrent running jobs (`max_running_jobs`).
-- Site ranking is based on `E` (`e_fixed`) only.
+- Site ranking is based directly on `greenscore` (`e_fixed`).
 - No tag-based compatibility filtering: any waiting job can run on any site.
 
 ## Input Files
@@ -37,8 +37,7 @@ Simplified first version of the simulator:
 ## Policy
 
 - Unmet demand is computed against currently free site slots.
-- Ranking currently uses E-only (ascending normalized `e_fixed`).
-- D signal is kept in code but inactive/commented for later.
+- Ranking currently uses `greenscore = e_fixed` directly (descending, higher is better).
 
 ## Run
 

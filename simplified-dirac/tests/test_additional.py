@@ -62,7 +62,7 @@ class AdditionalTests(unittest.TestCase):
         jobs = [make_job(f"J{i}", datetime(2026, 1, 1, 0, 0, 0)) for i in range(1, 5)]
 
         submissions = policy.schedule(jobs, sites)
-        self.assertEqual([("S1", 1), ("S2", 2), ("S3", 1)], submissions)
+        self.assertEqual([("S3", 4)], submissions)
 
     def test_step_match_assigns_fifo_with_site_quotas(self):
         sites = {
@@ -81,9 +81,9 @@ class AdditionalTests(unittest.TestCase):
         sim.current_time = datetime(2026, 1, 1, 0, 0, 0)
         sim.step_match()
 
-        self.assertEqual("S1", next(j for j in jobs if j.job_id == "J1").site)
+        self.assertEqual("S2", next(j for j in jobs if j.job_id == "J1").site)
         self.assertEqual("S2", next(j for j in jobs if j.job_id == "J2").site)
-        self.assertEqual("S2", next(j for j in jobs if j.job_id == "J3").site)
+        self.assertEqual("S1", next(j for j in jobs if j.job_id == "J3").site)
         self.assertEqual(1, len(sites["S1"].running_jobs))
         self.assertEqual(2, len(sites["S2"].running_jobs))
 
