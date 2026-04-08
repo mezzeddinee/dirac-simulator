@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 try:
     from .models import Job, Site
@@ -33,12 +33,6 @@ class ReplayCarbonPolicy:
             d[name] = float(len(s.running_jobs)) / float(cap)
         return d
 
-    def compatible(self, site_tags: Set[str], job: Job) -> bool:
-        # Simplified mode: no tag constraints. Any waiting job can run on any site.
-        _ = site_tags
-        _ = job
-        return True
-
     def unmet_jobs(self, waiting_jobs: List[Job], sites: Dict[str, Site]) -> List[Job]:
         slots = {name: s.available_slots() for name, s in sites.items()}
         unmet: List[Job] = []
@@ -47,8 +41,6 @@ class ReplayCarbonPolicy:
             assigned = False
             for site_name, site in sites.items():
                 if slots[site_name] <= 0:
-                    continue
-                if not self.compatible(site.tags, job):
                     continue
                 slots[site_name] -= 1
                 assigned = True

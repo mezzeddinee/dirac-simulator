@@ -26,18 +26,15 @@ def make_site(name: str, cores: int = 24, tdp: float = 180.0) -> Site:
         avg_total_cores=cores,
         perf_hs06=1.0,
         avg_wallclock_cpu_ratio=1.0,
-        tags={f"site:{name}", "sw:root", "cpu:x86_64"},
     )
 
 
-def make_job(job_id: str, submit: datetime, runtime_min: int = 20, any_tags=None, norm_cpu_seconds: float = 900.0) -> Job:
+def make_job(job_id: str, submit: datetime, runtime_min: int = 20, norm_cpu_seconds: float = 900.0) -> Job:
     return Job(
         job_id=job_id,
         tq="TQ",
         submit_time=submit,
         runtime_min=runtime_min,
-        required_all_tags={"sw:root"},
-        required_any_tags=set(any_tags or {"site:SARA"}),
         norm_cpu_seconds=norm_cpu_seconds,
         cores_used=1,
     )
@@ -82,7 +79,7 @@ class EdgeCaseTests(unittest.TestCase):
     def test_policy_schedule_places_job_even_without_matching_tags(self):
         policy = ReplayCarbonPolicy()
         sites = {"SARA": make_site("SARA")}
-        jobs = [make_job("J1", datetime(2026, 1, 1, 0, 0, 0), any_tags={"site:NIKHEF"})]
+        jobs = [make_job("J1", datetime(2026, 1, 1, 0, 0, 0))]
 
         submissions = policy.schedule(jobs, sites)
         self.assertEqual([("SARA", 1)], submissions)

@@ -23,44 +23,28 @@ def make_site(name: str, max_running_jobs: int = 2, e_fixed: float = 0.5) -> Sit
         avg_total_cores=12,
         perf_hs06=1.0,
         avg_wallclock_cpu_ratio=1.0,
-        tags={f"site:{name}", "sw:root", "cpu:x86_64"},
     )
 
 
-def make_job(job_id: str, any_tags=None, all_tags=None) -> Job:
+def make_job(job_id: str) -> Job:
     return Job(
         job_id=job_id,
         tq="TQ",
         submit_time=datetime(2026, 1, 1, 0, 0, 0),
         runtime_min=2,
-        required_all_tags=set(all_tags or []),
-        required_any_tags=set(any_tags or []),
         norm_cpu_seconds=60,
         cores_used=1,
     )
 
 
 class PolicyTests(unittest.TestCase):
-    def test_compatible_always_true_in_simplified_mode(self):
-        policy = ReplayCarbonPolicy()
-        tags = {"site:SARA", "sw:root", "cpu:x86_64"}
-
-        job_ok = make_job("J1", any_tags={"site:SARA", "site:NIKHEF"}, all_tags={"sw:root"})
-        self.assertTrue(policy.compatible(tags, job_ok))
-
-        job_missing_all = make_job("J2", any_tags={"site:SARA"}, all_tags={"sw:gaudi"})
-        self.assertTrue(policy.compatible(tags, job_missing_all))
-
-        job_missing_any = make_job("J3", any_tags={"site:NIKHEF"}, all_tags={"sw:root"})
-        self.assertTrue(policy.compatible(tags, job_missing_any))
-
     def test_unmet_jobs_shared_site_capacity_counted_once(self):
         policy = ReplayCarbonPolicy()
         sara = make_site("SARA", max_running_jobs=1)
         sites = {"SARA": sara}
         jobs = [
-            make_job("J1", any_tags={"site:SARA"}, all_tags={"sw:root"}),
-            make_job("J2", any_tags={"site:SARA"}, all_tags={"sw:root"}),
+            make_job("J1"),
+            make_job("J2"),
         ]
 
         unmet = policy.unmet_jobs(jobs, sites)
@@ -73,7 +57,7 @@ class PolicyTests(unittest.TestCase):
             "SARA": make_site("SARA", max_running_jobs=1, e_fixed=0.1),
             "NIKHEF": make_site("NIKHEF", max_running_jobs=1, e_fixed=0.9),
         }
-        jobs = [make_job("J1", any_tags={"site:NIKHEF"}, all_tags={"sw:root"})]
+        jobs = [make_job("J1")]
 
         submissions = policy.schedule(jobs, sites)
         self.assertEqual([("SARA", 1)], submissions)

@@ -23,7 +23,6 @@ def make_site(name: str, max_running_jobs: int = 2) -> Site:
         avg_total_cores=24,
         perf_hs06=1.0,
         avg_wallclock_cpu_ratio=1.0,
-        tags={f"site:{name}", "sw:root", "cpu:x86_64"},
     )
 
 
@@ -33,8 +32,6 @@ def make_job(job_id: str, submit: datetime) -> Job:
         tq="TQ",
         submit_time=submit,
         runtime_min=2,
-        required_all_tags={"sw:root"},
-        required_any_tags={"site:SARA"},
         norm_cpu_seconds=90.0,
         cores_used=1,
     )

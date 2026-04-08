@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional
 
 
 @dataclass
@@ -11,8 +11,6 @@ class Job:
     tq: str
     submit_time: datetime
     runtime_min: int
-    required_all_tags: Set[str] = field(default_factory=set)
-    required_any_tags: Set[str] = field(default_factory=set)
     norm_cpu_seconds: float = 0.0
     cores_used: int = 1
 
@@ -44,7 +42,6 @@ class Site:
     avg_total_cores: int
     perf_hs06: float
     avg_wallclock_cpu_ratio: float
-    tags: Set[str]
     running_jobs: list[Job] = field(default_factory=list)
 
     def available_slots(self) -> int:

@@ -3,27 +3,18 @@ from __future__ import annotations
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 try:
     from .models import Job, Site
 except ImportError:  # direct script-style execution fallback
     from models import Job, Site
 
-
-def parse_tags(raw: str) -> Set[str]:
-    if not raw:
-        return set()
-    return {x.strip() for x in raw.split("|") if x.strip()}
-
-
 def load_sites(path: Path) -> Dict[str, Site]:
     sites: Dict[str, Site] = {}
     with path.open(newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             name = row["site"].strip()
-            tags = parse_tags(row.get("tags", ""))
-            tags.add(f"site:{name}")
             sites[name] = Site(
                 name=name,
                 max_running_jobs=int(row.get("max_running_jobs", row.get("max_pilots", 0))),
@@ -34,7 +25,6 @@ def load_sites(path: Path) -> Dict[str, Site]:
                 avg_total_cores=int(row.get("avg_total_cores", 12)),
                 perf_hs06=float(row.get("perf_hs06", 1.0)),
                 avg_wallclock_cpu_ratio=float(row.get("avg_wallclock_cpu_ratio", 1.0)),
-                tags=tags,
             )
     return sites
 
@@ -49,8 +39,6 @@ def load_jobs(path: Path) -> List[Job]:
                     tq=row["tq"].strip(),
                     submit_time=datetime.fromisoformat(row["submit_time"].strip()),
                     runtime_min=int(row["runtime_min"]),
-                    required_all_tags=parse_tags(row.get("required_all_tags", "")),
-                    required_any_tags=parse_tags(row.get("required_any_tags", "")),
                     norm_cpu_seconds=float(row.get("norm_cpu_seconds", row.get("cpu_seconds", 0.0))),
                     cores_used=int(row.get("cores_used", 1)),
                 )

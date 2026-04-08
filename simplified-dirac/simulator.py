@@ -137,7 +137,7 @@ class ReplaySimulator:
     def step(self) -> None:
         # Move jobs whose submit_time has arrived from pending -> waiting.
         self.release_jobs()
-        # Global matching: assign waiting jobs directly to compatible sites with free slots.
+        # Global matching: assign waiting jobs directly to sites with free slots.
         self.step_match()
         # Execute one tick of running jobs and finalize completed jobs.
         self.step_execute()
