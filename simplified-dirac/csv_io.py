@@ -36,7 +36,7 @@ def load_jobs(path: Path) -> List[Job]:
             jobs.append(
                 Job(
                     job_id=row["job_id"].strip(),
-                    tq=row["tq"].strip(),
+                    tq=row.get("tq", "").strip(),
                     submit_time=datetime.fromisoformat(row["submit_time"].strip()),
                     runtime_min=int(row["runtime_min"]),
                     norm_cpu_seconds=float(row.get("norm_cpu_seconds", row.get("cpu_seconds", 0.0))),

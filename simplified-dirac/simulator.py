@@ -50,6 +50,8 @@ class ReplaySimulator:
         return value
 
     def release_jobs(self) -> None:
+        # Check all jobs that are not released yet.
+        # If their submit time is now, put them in the waiting queue.
         for j in self.pending_jobs:
             if j.status == "pending" and j.submit_time <= self.current_time:
                 j.activate()
@@ -100,17 +102,22 @@ class ReplaySimulator:
         return energy_joule / 3_600_000.0
 
     def step_match(self) -> None:
+        # Take waiting jobs in a stable order (oldest first, then by id).
         waiting = sorted(self.waiting_jobs(), key=lambda j: (j.submit_time, j.job_id))
+        # Ask the policy which site should take how many jobs now.
         submissions = self.policy.schedule(waiting, self.sites)
 
         for site_name, k in submissions:
             site = self.sites[site_name]
             quota = k
 
+            # Start up to "quota" jobs on this site.
             for picked in list(waiting[:quota]):
+                # Mark job as running and stamp start metadata.
                 picked.status = "running"
                 picked.start_time = self.current_time
                 picked.site = site.name
+                # Compute runtime and energy numbers for this site/job pair.
                 cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim = self.derive_job_runtime_for_site(picked, site)
                 picked.assigned_cpu_seconds = cpu_seconds_sim
                 picked.assigned_wallclock_seconds = wallclock_seconds_sim
@@ -120,28 +127,32 @@ class ReplaySimulator:
                 picked.total_energy_kwh = total_kwh
                 picked.assigned_ci_gco2_per_kwh = self.ci_for_job(site, picked)
                 picked.carbon_kg = (picked.total_energy_kwh * picked.assigned_ci_gco2_per_kwh) / 1000.0
+                # Put job into site's running list and remove it from waiting list.
                 site.running_jobs.append(picked)
                 waiting.remove(picked)
 
     def step_execute(self) -> None:
+        # Run one simulation minute for every running job.
         for site in self.sites.values():
             for job in list(site.running_jobs):
+                # Job worked for one more minute.
                 job.remaining_min -= 1
                 if job.remaining_min > 0:
                     continue
+                # Job is finished now: mark done and move it to completed list.
                 job.status = "done"
                 job.finish_time = self.current_time + self.tick
                 self.done_jobs.append(job)
                 site.running_jobs.remove(job)
 
     def step(self) -> None:
-        # Move jobs whose submit_time has arrived from pending -> waiting.
+        # STEP 1: Release new jobs (pending -> waiting).
         self.release_jobs()
-        # Global matching: assign waiting jobs directly to sites with free slots.
+        # STEP 2: Match waiting jobs to sites and start them.
         self.step_match()
-        # Execute one tick of running jobs and finalize completed jobs.
+        # STEP 3: Execute one tick and finish jobs that reached 0 time left.
         self.step_execute()
-        # Advance simulation clock by one tick (1 minute by default).
+        # STEP 4: Move clock forward by one tick (usually 1 minute).
         self.current_time += self.tick
 
     def done(self) -> bool:
