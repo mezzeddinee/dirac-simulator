@@ -20,7 +20,7 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
     jobs = load_jobs(base / "jobs.csv")
     ci = load_ci(base / "site_ci.csv")
 
-    use_live_ci = os.getenv("SIMULATOR_USE_LIVE_CI", "0").lower() in {"1", "true", "yes"}
+    use_live_ci = os.getenv("SIMULATOR_USE_LIVE_CI", "1").lower() in {"1", "true", "yes"}
     ci_provider = None
     if use_live_ci:
         conf_path = Path(os.getenv("SIMULATOR_CI_CONF", str(base / "cim.conf")))

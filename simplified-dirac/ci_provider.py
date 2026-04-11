@@ -84,20 +84,29 @@ class MidpointCIProvider:
             return None
 
         try:
-            resp = requests.post(
+            resp = requests.get(
                 f"{self.cim_api_base}/token",
-                json={"email": self.email, "password": self.password},
+                params={"email": self.email, "password": self.password},
                 timeout=self.timeout_s,
             )
             resp.raise_for_status()
             data = resp.json()
-            token = data.get("access_token")
-            if not token:
-                return None
-            self.token = token
-            self._token_ts = time.time()
-            return token
-        except requests.exceptions.RequestException:
+            token = (
+                data.get("access_token")
+                or data.get("token")
+                or data.get("jwt")
+                or data.get("id_token")
+            )
+            if token:
+                self.token = token
+                self._token_ts = time.time()
+                return token
+            return None
+        except (
+            requests.exceptions.RequestException,
+            ValueError,
+            json.JSONDecodeError,
+        ):
             return None
 
     def _hour_bucket(self, ts: datetime) -> datetime:

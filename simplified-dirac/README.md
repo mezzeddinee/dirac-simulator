@@ -10,7 +10,8 @@ Simplified first version of the simulator:
 ## Input Files
 
 - `sites.csv`: site capacity and characteristics. `max_running_jobs` is supported; if missing, loader falls back to `max_pilots`.
-- `jobs.csv`: job arrivals and normalized workload (`norm_cpu_seconds`).
+- `jobs.csv`: `job_id,submit_time,norm_cpu_seconds,cores_used`.
+  Runtime is derived at match time from `norm_cpu_seconds`, `perf_hs06`, and `avg_wallclock_cpu_ratio`.
 - `site_ci.csv`: fallback CI time series by site.
 
 ## Step Flow (1 minute per tick)

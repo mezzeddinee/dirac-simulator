@@ -30,7 +30,8 @@ class ReplayCarbonPolicy:
         return unmet
 
     def schedule(self, waiting_jobs: List[Job], sites: Dict[str, Site]) -> List[Tuple[str, int]]:
-        remaining = sorted(waiting_jobs, key=lambda j: (j.submit_time, j.job_id))
+        # Preserve the caller-defined waiting order (sorted in simulator step_match).
+        remaining = list(waiting_jobs)
         demand = len(remaining)
         if demand <= 0:
             return []

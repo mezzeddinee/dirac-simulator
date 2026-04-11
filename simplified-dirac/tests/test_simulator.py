@@ -29,9 +29,7 @@ def make_site(name: str, max_running_jobs: int = 2) -> Site:
 def make_job(job_id: str, submit: datetime) -> Job:
     return Job(
         job_id=job_id,
-        tq="TQ",
         submit_time=submit,
-        runtime_min=2,
         norm_cpu_seconds=90.0,
         cores_used=1,
     )

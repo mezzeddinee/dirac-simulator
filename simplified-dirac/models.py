@@ -8,9 +8,7 @@ from typing import Optional
 @dataclass
 class Job:
     job_id: str
-    tq: str
     submit_time: datetime
-    runtime_min: int
     norm_cpu_seconds: float = 0.0
     cores_used: int = 1
 
@@ -28,7 +26,7 @@ class Job:
 
     def activate(self) -> None:
         self.status = "waiting"
-        self.remaining_min = self.runtime_min
+        self.remaining_min = 0
 
 
 @dataclass

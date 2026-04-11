@@ -57,7 +57,10 @@ class ReplaySimulator:
                 j.activate()
 
     def ci_for_job(self, site: Site, job: Job) -> float:
-        runtime_for_midpoint = job.assigned_runtime_min if job.assigned_runtime_min > 0 else job.runtime_min
+        if job.assigned_runtime_min > 0:
+            runtime_for_midpoint = job.assigned_runtime_min
+        else:
+            _, _, runtime_for_midpoint = self.derive_job_runtime_for_site(job, site)
         midpoint = job.submit_time + timedelta(minutes=(runtime_for_midpoint / 2.0))
         if self.ci_provider is not None:
             return self.ci_provider.get_ci(

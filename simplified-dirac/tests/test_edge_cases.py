@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
+from requests.exceptions import HTTPError
 import sys
 
 # Allow running tests from any cwd (IDE or CLI).
@@ -29,12 +30,10 @@ def make_site(name: str, cores: int = 24, tdp: float = 180.0) -> Site:
     )
 
 
-def make_job(job_id: str, submit: datetime, runtime_min: int = 20, norm_cpu_seconds: float = 900.0) -> Job:
+def make_job(job_id: str, submit: datetime, norm_cpu_seconds: float = 900.0) -> Job:
     return Job(
         job_id=job_id,
-        tq="TQ",
         submit_time=submit,
-        runtime_min=runtime_min,
         norm_cpu_seconds=norm_cpu_seconds,
         cores_used=1,
     )
@@ -49,6 +48,19 @@ class _Resp:
 
     def json(self):
         return {"ci_gco2_per_kwh": self._ci}
+
+class _TokenResp:
+    def __init__(self, payload, raise_http=False):
+        self._payload = payload
+        self._raise_http = raise_http
+
+    def raise_for_status(self):
+        if self._raise_http:
+            raise HTTPError("auth failed")
+        return None
+
+    def json(self):
+        return self._payload
 
 
 class EdgeCaseTests(unittest.TestCase):
@@ -76,6 +88,39 @@ class EdgeCaseTests(unittest.TestCase):
         self.assertEqual(333.0, ci2)
         self.assertEqual(0, post.call_count)
 
+    def test_get_token_uses_get_only(self):
+        provider = MidpointCIProvider(
+            cim_api_base="https://cim.example",
+            email="user@example.org",
+            password="secret",
+        )
+
+        with patch(
+            "ci_provider.requests.get",
+            return_value=_TokenResp({"token": "tok-get"}),
+        ) as get, patch("ci_provider.requests.post") as post:
+            token = provider._get_token()
+
+        self.assertEqual("tok-get", token)
+        self.assertEqual(1, get.call_count)
+        self.assertEqual(0, post.call_count)
+
+    def test_get_token_returns_none_on_get_http_error(self):
+        provider = MidpointCIProvider(
+            cim_api_base="https://cim.example",
+            email="user@example.org",
+            password="secret",
+        )
+
+        with patch(
+            "ci_provider.requests.get",
+            return_value=_TokenResp({}, raise_http=True),
+        ) as get:
+            token = provider._get_token()
+
+        self.assertIsNone(token)
+        self.assertEqual(1, get.call_count)
+
     def test_policy_schedule_places_job_even_without_matching_tags(self):
         policy = ReplayCarbonPolicy()
         sites = {"SARA": make_site("SARA")}
@@ -86,7 +131,7 @@ class EdgeCaseTests(unittest.TestCase):
 
     def test_simulator_ci_for_job_uses_midpoint_csv_lookup(self):
         site = make_site("SARA")
-        job = make_job("J1", datetime(2026, 1, 1, 12, 10, 0), runtime_min=20)
+        job = make_job("J1", datetime(2026, 1, 1, 12, 10, 0), norm_cpu_seconds=1200.0)
         sim = ReplaySimulator(
             sites={"SARA": site},
             jobs=[job],
@@ -120,8 +165,8 @@ class EdgeCaseTests(unittest.TestCase):
     def test_release_jobs_boundary_exact_current_time(self):
         site = make_site("SARA")
         now = datetime(2026, 1, 1, 0, 0, 0)
-        j_now = make_job("J_now", now, runtime_min=1)
-        j_later = make_job("J_later", datetime(2026, 1, 1, 0, 1, 0), runtime_min=1)
+        j_now = make_job("J_now", now)
+        j_later = make_job("J_later", datetime(2026, 1, 1, 0, 1, 0))
         sim = ReplaySimulator(sites={"SARA": site}, jobs=[j_now, j_later], ci_series={}, tick_minutes=1)
         sim.current_time = now
 

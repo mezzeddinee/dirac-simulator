@@ -22,7 +22,7 @@ def load_sites(path: Path) -> Dict[str, Site]:
                 latitude=float(row["latitude"]) if row.get("latitude") else None,
                 longitude=float(row["longitude"]) if row.get("longitude") else None,
                 avg_tdp_w=float(row.get("avg_tdp_w", 150.0)),
-                avg_total_cores=int(row.get("avg_total_cores", 12)),
+                avg_total_cores=float(row.get("avg_total_cores", 12)),
                 perf_hs06=float(row.get("perf_hs06", 1.0)),
                 avg_wallclock_cpu_ratio=float(row.get("avg_wallclock_cpu_ratio", 1.0)),
             )
@@ -36,9 +36,7 @@ def load_jobs(path: Path) -> List[Job]:
             jobs.append(
                 Job(
                     job_id=row["job_id"].strip(),
-                    tq=row.get("tq", "").strip(),
                     submit_time=datetime.fromisoformat(row["submit_time"].strip()),
-                    runtime_min=int(row["runtime_min"]),
                     norm_cpu_seconds=float(row.get("norm_cpu_seconds", row.get("cpu_seconds", 0.0))),
                     cores_used=int(row.get("cores_used", 1)),
                 )

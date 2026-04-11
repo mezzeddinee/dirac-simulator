@@ -29,12 +29,10 @@ def make_site(name: str, max_running_jobs: int = 2, e_fixed: float = 0.5) -> Sit
     )
 
 
-def make_job(job_id: str, submit: datetime, runtime_min: int = 2, norm_cpu_seconds: float = 120.0) -> Job:
+def make_job(job_id: str, submit: datetime, norm_cpu_seconds: float = 120.0) -> Job:
     return Job(
         job_id=job_id,
-        tq="TQ",
         submit_time=submit,
-        runtime_min=runtime_min,
         norm_cpu_seconds=norm_cpu_seconds,
         cores_used=1,
     )
@@ -89,7 +87,7 @@ class AdditionalTests(unittest.TestCase):
 
     def test_done_is_false_until_jobs_are_done(self):
         site = make_site("S1", max_running_jobs=1, e_fixed=0.1)
-        job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), runtime_min=1, norm_cpu_seconds=30.0)
+        job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=30.0)
         sim = ReplaySimulator(sites={"S1": site}, jobs=[job], ci_series={}, tick_minutes=1)
 
         self.assertFalse(sim.done())  # job is still pending
