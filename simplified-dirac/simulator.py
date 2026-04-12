@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,6 +11,8 @@ try:
 except ImportError:  # direct script-style execution fallback
     from models import Job, Site
     from policy import ReplayCarbonPolicy
+
+logger = logging.getLogger(__name__)
 
 
 class ReplaySimulator:
@@ -31,6 +34,12 @@ class ReplaySimulator:
         self.current_time = min(j.submit_time for j in jobs)
         self.done_jobs: List[Job] = []
         self.idle_consumption_factor = 0.4
+        logger.info(
+            "sim init sites=%d jobs=%d tick_min=%d",
+            len(self.sites),
+            len(self.pending_jobs),
+            tick_minutes,
+        )
 
     def waiting_jobs(self) -> List[Job]:
         return [j for j in self.pending_jobs if j.status == "waiting"]
@@ -52,9 +61,13 @@ class ReplaySimulator:
     def release_jobs(self) -> None:
         # Check all jobs that are not released yet.
         # If their submit time is now, put them in the waiting queue.
+        released = 0
         for j in self.pending_jobs:
             if j.status == "pending" and j.submit_time <= self.current_time:
                 j.activate()
+                released += 1
+        if released:
+            logger.info("release t=%s jobs=%d", self.current_time.isoformat(), released)
 
     def ci_for_job(self, site: Site, job: Job) -> float:
         if job.assigned_runtime_min > 0:
@@ -109,6 +122,8 @@ class ReplaySimulator:
         waiting = sorted(self.waiting_jobs(), key=lambda j: (j.submit_time, j.job_id))
         # Ask the policy which site should take how many jobs now.
         submissions = self.policy.schedule(waiting, self.sites)
+        if submissions:
+            logger.info("match t=%s waiting=%d submissions=%s", self.current_time.isoformat(), len(waiting), submissions)
 
         for site_name, k in submissions:
             site = self.sites[site_name]
@@ -133,9 +148,11 @@ class ReplaySimulator:
                 # Put job into site's running list and remove it from waiting list.
                 site.running_jobs.append(picked)
                 waiting.remove(picked)
+                logger.debug("start job=%s site=%s rt=%d", picked.job_id, site.name, picked.assigned_runtime_min)
 
     def step_execute(self) -> None:
         # Run one simulation minute for every running job.
+        finished = 0
         for site in self.sites.values():
             for job in list(site.running_jobs):
                 # Job worked for one more minute.
@@ -147,8 +164,12 @@ class ReplaySimulator:
                 job.finish_time = self.current_time + self.tick
                 self.done_jobs.append(job)
                 site.running_jobs.remove(job)
+                finished += 1
+        if finished:
+            logger.info("finish t=%s jobs=%d", self.current_time.isoformat(), finished)
 
     def step(self) -> None:
+        logger.debug("step t=%s active=%d", self.current_time.isoformat(), self.active_jobs())
         # STEP 1: Release new jobs (pending -> waiting).
         self.release_jobs()
         # STEP 2: Match waiting jobs to sites and start them.

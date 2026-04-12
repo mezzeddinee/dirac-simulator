@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import configparser
 import json
+import logging
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class MidpointCIProvider:
@@ -41,6 +44,7 @@ class MidpointCIProvider:
         for k in stale:
             del self.cache[k]
         self.cache[(site_name, bucket)] = ci
+        logger.info("ci cache set site=%s bucket=%s stale=%d", site_name, bucket.isoformat(), len(stale))
 
     @classmethod
     def from_config(
@@ -74,13 +78,16 @@ class MidpointCIProvider:
         if self.token and self._token_ts is not None:
             age_h = (time.time() - self._token_ts) / 3600.0
             if age_h < self.token_max_age_h:
+                logger.info("token cache hit age_h=%.2f", age_h)
                 return self.token
 
         if self.token and self._token_ts is None:
             self._token_ts = time.time()
+            logger.info("token provided externally")
             return self.token
 
         if not self.cim_api_base or not self.email or not self.password:
+            logger.info("token fetch skipped missing cim credentials")
             return None
 
         try:
@@ -100,13 +107,16 @@ class MidpointCIProvider:
             if token:
                 self.token = token
                 self._token_ts = time.time()
+                logger.info("token fetched")
                 return token
+            logger.info("token fetch empty response")
             return None
         except (
             requests.exceptions.RequestException,
             ValueError,
             json.JSONDecodeError,
         ):
+            logger.info("token fetch failed; using anonymous mode")
             return None
 
     def _hour_bucket(self, ts: datetime) -> datetime:
@@ -127,10 +137,12 @@ class MidpointCIProvider:
         bucket = self._hour_bucket(midpoint_ts)
         key = (site_name, bucket)
         if key in self.cache:
+            logger.info("ci cache hit site=%s bucket=%s", site_name, bucket.isoformat())
             return self.cache[key]
 
         if latitude is None or longitude is None:
             self._cache_set(site_name, bucket, self.fallback_ci)
+            logger.info("ci fallback site=%s reason=missing_coords", site_name)
             return self.fallback_ci
 
         start = bucket.isoformat().replace("+00:00", "Z")
@@ -160,12 +172,14 @@ class MidpointCIProvider:
             resp.raise_for_status()
             data = resp.json()
             ci = float(data.get("ci_gco2_per_kwh", self.fallback_ci))
+            logger.info("ci api ok site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci)
         except (
             requests.exceptions.RequestException,
             ValueError,
             json.JSONDecodeError,
         ):
             ci = self.fallback_ci
+            logger.info("ci api failed site=%s bucket=%s using_fallback", site_name, bucket.isoformat())
 
         self._cache_set(site_name, bucket, ci)
         return ci

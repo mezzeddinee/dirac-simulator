@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Tuple
 
 try:
     from .models import Job, Site
 except ImportError:  # direct script-style execution fallback
     from models import Job, Site
+
+logger = logging.getLogger(__name__)
 
 
 class ReplayCarbonPolicy:
@@ -34,6 +37,7 @@ class ReplayCarbonPolicy:
         remaining = list(waiting_jobs)
         demand = len(remaining)
         if demand <= 0:
+            logger.debug("schedule no demand")
             return []
 
         e_score = self.estimate_e(sites)
@@ -55,4 +59,5 @@ class ReplayCarbonPolicy:
             if demand == 0:
                 break
 
+        logger.info("schedule demand=%d submissions=%s", len(waiting_jobs), submissions)
         return submissions

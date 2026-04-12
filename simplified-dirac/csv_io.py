@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -9,6 +10,9 @@ try:
     from .models import Job, Site
 except ImportError:  # direct script-style execution fallback
     from models import Job, Site
+
+logger = logging.getLogger(__name__)
+
 
 def load_sites(path: Path) -> Dict[str, Site]:
     sites: Dict[str, Site] = {}
@@ -22,10 +26,11 @@ def load_sites(path: Path) -> Dict[str, Site]:
                 latitude=float(row["latitude"]) if row.get("latitude") else None,
                 longitude=float(row["longitude"]) if row.get("longitude") else None,
                 avg_tdp_w=float(row.get("avg_tdp_w", 150.0)),
-                avg_total_cores=float(row.get("avg_total_cores", 12)),
+                avg_total_cores=float(row.get("avg_total_cores", 12.0)),
                 perf_hs06=float(row.get("perf_hs06", 1.0)),
                 avg_wallclock_cpu_ratio=float(row.get("avg_wallclock_cpu_ratio", 1.0)),
             )
+    logger.info("sites loaded path=%s count=%d", path, len(sites))
     return sites
 
 
@@ -41,6 +46,7 @@ def load_jobs(path: Path) -> List[Job]:
                     cores_used=int(row.get("cores_used", 1)),
                 )
             )
+    logger.info("jobs loaded path=%s count=%d", path, len(jobs))
     return jobs
 
 
@@ -54,4 +60,5 @@ def load_ci(path: Path) -> Dict[str, List[Tuple[datetime, float]]]:
             out.setdefault(site, []).append((t, ci))
     for site in out:
         out[site].sort(key=lambda x: x[0])
+    logger.info("ci series loaded path=%s sites=%d", path, len(out))
     return out
