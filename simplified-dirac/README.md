@@ -12,7 +12,7 @@ Simplified first version of the simulator:
 - `sites.csv`: site capacity and characteristics. `max_running_jobs` is supported; if missing, loader falls back to `max_pilots`.
 - `jobs.csv`: `job_id,submit_time,norm_cpu_seconds,cores_used`.
   Runtime is derived at match time from `norm_cpu_seconds`, `perf_hs06`, and `avg_wallclock_cpu_ratio`.
-- `site_ci.csv`: fallback CI time series by site.
+- `cim.conf`: CI provider configuration (CIM/KPI endpoints and defaults).
 
 ## Step Flow (1 minute per tick)
 
@@ -26,7 +26,7 @@ Simplified first version of the simulator:
   - state becomes `running`
   - site-specific runtime is derived from `norm_cpu_seconds`, `perf_hs06`, and `avg_wallclock_cpu_ratio`
   - total energy is computed
-  - CI is fixed at runtime midpoint (live API if enabled, otherwise CSV lookup)
+  - CI is fixed at runtime midpoint via `MidpointCIProvider`
   - carbon is computed once: `carbon_kg = total_energy_kwh * ci / 1000`
 
 3. `step_execute()`

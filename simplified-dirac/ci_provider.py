@@ -50,13 +50,13 @@ class MidpointCIProvider:
     def from_config(
         cls,
         conf_path: Path,
-        email: Optional[str],
-        password: Optional[str],
         token: Optional[str] = None,
     ) -> "MidpointCIProvider":
         cfg = configparser.ConfigParser()
         cfg.read(conf_path)
         cim_api_base = cfg.get("CIM", "API_BASE", fallback="").strip()
+        email = cfg.get("CIM", "EMAIL", fallback="").strip() or None
+        password = cfg.get("CIM", "PASSWORD", fallback="").strip() or None
         kpi_api_base = cfg.get("KPI", "API_BASE", fallback="").strip()
         default_pue = cfg.getfloat("Defaults", "PUE", fallback=1.4)
         fallback_ci = cfg.getfloat("Defaults", "CI", fallback=300.0)
