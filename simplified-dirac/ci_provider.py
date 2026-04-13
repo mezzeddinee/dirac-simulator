@@ -44,7 +44,7 @@ class MidpointCIProvider:
         for k in stale:
             del self.cache[k]
         self.cache[(site_name, bucket)] = ci
-        logger.info("ci cache set site=%s bucket=%s stale=%d", site_name, bucket.isoformat(), len(stale))
+        logger.info("ci cache set site=%s bucket=%s ci=%.3f stale=%d", site_name, bucket.isoformat(), ci, len(stale))
 
     @classmethod
     def from_config(
@@ -137,12 +137,13 @@ class MidpointCIProvider:
         bucket = self._hour_bucket(midpoint_ts)
         key = (site_name, bucket)
         if key in self.cache:
-            logger.info("ci cache hit site=%s bucket=%s", site_name, bucket.isoformat())
-            return self.cache[key]
+            ci_cached = self.cache[key]
+            logger.info("ci cache hit site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci_cached)
+            return ci_cached
 
         if latitude is None or longitude is None:
             self._cache_set(site_name, bucket, self.fallback_ci)
-            logger.info("ci fallback site=%s reason=missing_coords", site_name)
+            logger.info("ci fallback site=%s bucket=%s ci=%.3f reason=missing_coords", site_name, bucket.isoformat(), self.fallback_ci)
             return self.fallback_ci
 
         start = bucket.isoformat().replace("+00:00", "Z")
@@ -173,13 +174,36 @@ class MidpointCIProvider:
             data = resp.json()
             ci = float(data.get("ci_gco2_per_kwh", self.fallback_ci))
             logger.info("ci api ok site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci)
-        except (
-            requests.exceptions.RequestException,
-            ValueError,
-            json.JSONDecodeError,
-        ):
+        except requests.exceptions.HTTPError as exc:
             ci = self.fallback_ci
-            logger.info("ci api failed site=%s bucket=%s using_fallback", site_name, bucket.isoformat())
+            status = exc.response.status_code if exc.response is not None else "n/a"
+            body = (exc.response.text[:300] if exc.response is not None and exc.response.text else "").replace("\n", " ")
+            logger.info(
+                "ci api http_error site=%s bucket=%s status=%s body=%s using_fallback ci=%.3f",
+                site_name,
+                bucket.isoformat(),
+                status,
+                body,
+                ci,
+            )
+        except requests.exceptions.RequestException as exc:
+            ci = self.fallback_ci
+            logger.info(
+                "ci api request_error site=%s bucket=%s err=%s using_fallback ci=%.3f",
+                site_name,
+                bucket.isoformat(),
+                exc,
+                ci,
+            )
+        except (ValueError, json.JSONDecodeError) as exc:
+            ci = self.fallback_ci
+            logger.info(
+                "ci api parse_error site=%s bucket=%s err=%s using_fallback ci=%.3f",
+                site_name,
+                bucket.isoformat(),
+                exc,
+                ci,
+            )
 
         self._cache_set(site_name, bucket, ci)
         return ci

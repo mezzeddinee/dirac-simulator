@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from typing import Dict, List, Tuple
 
 try:
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class ReplayCarbonPolicy:
+    def __init__(self, green: int = 1):
+        self.green = int(green)
+
     def estimate_e(self, sites: Dict[str, Site]) -> Dict[str, float]:
         # E: greenscore proxy per site (higher is better).
         return {name: s.e_fixed for name, s in sites.items()}
@@ -40,9 +44,14 @@ class ReplayCarbonPolicy:
             logger.debug("schedule no demand")
             return []
 
-        e_score = self.estimate_e(sites)
-        # First-trial simplified ranking: use e_score directly as greenscore (higher is better).
-        scored = sorted(sites.values(), key=lambda s: e_score[s.name], reverse=True)
+        if self.green == 1:
+            e_score = self.estimate_e(sites)
+            # Green mode: rank by greenscore (higher is better).
+            scored = sorted(sites.values(), key=lambda s: e_score[s.name], reverse=True)
+        else:
+            # Non-green mode: random site order.
+            scored = list(sites.values())
+            random.shuffle(scored)
 
         submissions: List[Tuple[str, int]] = []
         for site in scored:
@@ -59,5 +68,5 @@ class ReplayCarbonPolicy:
             if demand == 0:
                 break
 
-        logger.info("schedule demand=%d submissions=%s", len(waiting_jobs), submissions)
+        logger.info("schedule green=%d demand=%d submissions=%s", self.green, len(waiting_jobs), submissions)
         return submissions

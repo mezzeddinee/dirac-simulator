@@ -38,7 +38,10 @@ Simplified first version of the simulator:
 ## Policy
 
 - Unmet demand is computed against currently free site slots.
-- Ranking currently uses `greenscore = e_fixed` directly (descending, higher is better).
+- `green` flag controls site ordering:
+  - `green=1`: rank by `greenscore = e_fixed` (descending, higher is better).
+  - `green=0`: ignore `e_fixed` and shuffle sites randomly before assignment.
+- Runtime switch is done with `SIMULATOR_GREEN` (default is `1`).
 
 ## Run
 
@@ -47,12 +50,10 @@ cd /home/mezzeddi/PycharmProjects/testsim/dirac-simulator/simplified-dirac
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
-python3 main.py
+# Green mode (score-based ranking)
+SIMULATOR_GREEN=1 python3 main.py
+# Non-green mode (randomized site ordering)
+SIMULATOR_GREEN=0 python3 main.py
 ```
 
-## Tests
 
-```bash
-cd /home/mezzeddi/PycharmProjects/testsim/dirac-simulator/simplified-dirac
-python3 -m unittest discover -s tests -p 'test_*.py' -v
-```
