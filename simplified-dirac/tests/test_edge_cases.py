@@ -63,6 +63,16 @@ class _TokenResp:
         return self._payload
 
 
+class DummyCIProvider:
+    def __init__(self, ci=100.0):
+        self.ci = ci
+        self.calls = []
+
+    def get_ci(self, site_name, midpoint_ts, latitude, longitude):
+        self.calls.append((site_name, midpoint_ts, latitude, longitude))
+        return self.ci
+
+
 class EdgeCaseTests(unittest.TestCase):
     def test_ci_provider_half_hour_bucket_cache(self):
         provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example")
@@ -129,28 +139,27 @@ class EdgeCaseTests(unittest.TestCase):
         submissions = policy.schedule(jobs, sites)
         self.assertEqual([("SARA", 1)], submissions)
 
-    def test_simulator_ci_for_job_uses_midpoint_csv_lookup(self):
+    def test_simulator_ci_for_job_uses_midpoint_provider(self):
         site = make_site("SARA")
         job = make_job("J1", datetime(2026, 1, 1, 12, 10, 0), norm_cpu_seconds=1200.0)
+        provider = DummyCIProvider(ci=123.0)
         sim = ReplaySimulator(
             sites={"SARA": site},
             jobs=[job],
-            ci_series={
-                "SARA": [
-                    (datetime(2026, 1, 1, 12, 0, 0), 100.0),
-                    (datetime(2026, 1, 1, 12, 30, 0), 200.0),
-                ]
-            },
             tick_minutes=1,
+            ci_provider=provider,
         )
 
-        # midpoint = 12:20 -> should pick latest <= 12:20 => 100.0
-        self.assertEqual(100.0, sim.ci_for_job(site, job))
+        ci = sim.ci_for_job(site, job)
+        self.assertEqual(123.0, ci)
+        self.assertEqual(1, len(provider.calls))
+        _, midpoint, _, _ = provider.calls[0]
+        self.assertEqual(datetime(2026, 1, 1, 12, 20, 0), midpoint)
 
     def test_compute_energy_guard_conditions(self):
         site_zero_cores = make_site("SARA", cores=0)
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0))
-        sim = ReplaySimulator(sites={"SARA": site_zero_cores}, jobs=[job], ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites={"SARA": site_zero_cores}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
         self.assertEqual(0.0, sim.compute_energy_kwh(job, site_zero_cores))
 
         site_ok = make_site("SARA", cores=24)
@@ -167,7 +176,7 @@ class EdgeCaseTests(unittest.TestCase):
         now = datetime(2026, 1, 1, 0, 0, 0)
         j_now = make_job("J_now", now)
         j_later = make_job("J_later", datetime(2026, 1, 1, 0, 1, 0))
-        sim = ReplaySimulator(sites={"SARA": site}, jobs=[j_now, j_later], ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites={"SARA": site}, jobs=[j_now, j_later], tick_minutes=1, ci_provider=DummyCIProvider())
         sim.current_time = now
 
         sim.release_jobs()
@@ -179,7 +188,7 @@ class EdgeCaseTests(unittest.TestCase):
         site.perf_hs06 = 2.0
         site.avg_wallclock_cpu_ratio = 1.5
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=600.0)
-        sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 
         cpu_s, wall_s, runtime_m = sim.derive_job_runtime_for_site(job, site)
         self.assertEqual(300.0, cpu_s)   # 600 / 2.0

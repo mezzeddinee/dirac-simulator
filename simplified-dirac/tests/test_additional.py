@@ -49,6 +49,11 @@ class _Resp:
         return {"ci_gco2_per_kwh": self._ci}
 
 
+class DummyCIProvider:
+    def get_ci(self, site_name, midpoint_ts, latitude, longitude):
+        return 200.0
+
+
 class AdditionalTests(unittest.TestCase):
     def test_schedule_spreads_across_sites_by_e_and_capacity(self):
         policy = ReplayCarbonPolicy()
@@ -75,7 +80,7 @@ class AdditionalTests(unittest.TestCase):
         for j in jobs:
             j.activate()
 
-        sim = ReplaySimulator(sites=sites, jobs=jobs, ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites=sites, jobs=jobs, tick_minutes=1, ci_provider=DummyCIProvider())
         sim.current_time = datetime(2026, 1, 1, 0, 0, 0)
         sim.step_match()
 
@@ -88,7 +93,7 @@ class AdditionalTests(unittest.TestCase):
     def test_done_is_false_until_jobs_are_done(self):
         site = make_site("S1", max_running_jobs=1, e_fixed=0.1)
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=30.0)
-        sim = ReplaySimulator(sites={"S1": site}, jobs=[job], ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites={"S1": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 
         self.assertFalse(sim.done())  # job is still pending
 

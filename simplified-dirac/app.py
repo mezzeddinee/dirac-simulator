@@ -43,7 +43,6 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
     sim = ReplaySimulator(
         sites=sites,
         jobs=jobs,
-        ci_series={},
         tick_minutes=tick_minutes,
         policy=policy,
         ci_provider=ci_provider,

@@ -48,7 +48,7 @@ class SimulatorTests(unittest.TestCase):
     def test_compute_energy_kwh_matches_formula(self):
         site = make_site("SARA")
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0))
-        sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], ci_series={}, tick_minutes=1)
+        sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 
         energy = sim.compute_energy_kwh(job, site)
         # derived wallclock=max(cpu,60)=90
@@ -62,7 +62,6 @@ class SimulatorTests(unittest.TestCase):
         sim = ReplaySimulator(
             sites={"SARA": site},
             jobs=[job],
-            ci_series={},
             tick_minutes=1,
             ci_provider=provider,
         )
@@ -84,8 +83,8 @@ class SimulatorTests(unittest.TestCase):
         sim = ReplaySimulator(
             sites={"SARA": site},
             jobs=[job],
-            ci_series={"SARA": [(datetime(2026, 1, 1, 0, 0, 0), 210.0)]},
             tick_minutes=1,
+            ci_provider=DummyCIProvider(),
         )
         sim.current_time = datetime(2026, 1, 1, 0, 0, 0)
 

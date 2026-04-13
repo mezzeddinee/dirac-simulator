@@ -20,16 +20,16 @@ class ReplaySimulator:
         self,
         sites: Dict[str, Site],
         jobs: List[Job],
-        ci_series: Dict[str, List[Tuple[datetime, float]]],
         tick_minutes: int = 1,
         policy: Optional[ReplayCarbonPolicy] = None,
-        ci_provider: Optional[Any] = None,
+        ci_provider: Any = None,
     ):
         self.sites = sites
         self.pending_jobs = sorted(jobs, key=lambda j: j.submit_time)
-        self.ci_series = ci_series
         self.policy = policy or ReplayCarbonPolicy()
         self.ci_provider = ci_provider
+        if self.ci_provider is None:
+            raise ValueError("ci_provider is required")
         self.tick = timedelta(minutes=tick_minutes)
         self.current_time = min(j.submit_time for j in jobs)
         self.done_jobs: List[Job] = []
@@ -46,17 +46,6 @@ class ReplaySimulator:
 
     def active_jobs(self) -> int:
         return sum(len(s.running_jobs) for s in self.sites.values())
-
-    def ci_at(self, site: str, ts: datetime) -> float:
-        series = self.ci_series.get(site, [])
-        if not series:
-            return 300.0
-        value = series[0][1]
-        for t, ci in series:
-            if t > ts:
-                break
-            value = ci
-        return value
 
     def release_jobs(self) -> None:
         # Check all jobs that are not released yet.
@@ -75,14 +64,12 @@ class ReplaySimulator:
         else:
             _, _, runtime_for_midpoint = self.derive_job_runtime_for_site(job, site)
         midpoint = job.submit_time + timedelta(minutes=(runtime_for_midpoint / 2.0))
-        if self.ci_provider is not None:
-            return self.ci_provider.get_ci(
-                site_name=site.name,
-                midpoint_ts=midpoint,
-                latitude=site.latitude,
-                longitude=site.longitude,
-            )
-        return self.ci_at(site.name, midpoint)
+        return self.ci_provider.get_ci(
+            site_name=site.name,
+            midpoint_ts=midpoint,
+            latitude=site.latitude,
+            longitude=site.longitude,
+        )
 
     def derive_job_runtime_for_site(self, job: Job, site: Site) -> Tuple[float, float, int]:
         # perf_hs06 is a site speed factor:
