@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import sys
 
@@ -10,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ci_provider import MidpointCIProvider
+from csv_io import load_jobs
 from models import Job, Site
 from policy import ReplayCarbonPolicy
 from simulator import ReplaySimulator
@@ -55,6 +57,34 @@ class DummyCIProvider:
 
 
 class AdditionalTests(unittest.TestCase):
+    def test_load_jobs_reads_wallclock_and_cpu_norm_factor(self):
+        csv_content = (
+            "job_id,submit_time,norm_cpu_seconds,cores_used,wallclock,CPUNormFactor\n"
+            "J1,2026-01-01 00:00:00,120.0,2,7.5,4.2\n"
+        )
+        with TemporaryDirectory() as tmp_dir:
+            csv_path = Path(tmp_dir) / "jobs.csv"
+            csv_path.write_text(csv_content, encoding="utf-8")
+            jobs = load_jobs(csv_path)
+
+        self.assertEqual(1, len(jobs))
+        self.assertEqual(7.5, jobs[0].wallclock)
+        self.assertEqual(4.2, jobs[0].cpu_norm_factor)
+
+    def test_load_jobs_reads_dirac_parameter_names(self):
+        csv_content = (
+            "job_id,submit_time,NormCPUTime(s),cores_used,WallClockTime,CPUNormalizationFactor\n"
+            "J1,2026-01-01 00:00:00,120.0,2,61.024,33.9\n"
+        )
+        with TemporaryDirectory() as tmp_dir:
+            csv_path = Path(tmp_dir) / "jobs.csv"
+            csv_path.write_text(csv_content, encoding="utf-8")
+            jobs = load_jobs(csv_path)
+
+        self.assertEqual(1, len(jobs))
+        self.assertEqual(61.024, jobs[0].wallclock)
+        self.assertEqual(33.9, jobs[0].cpu_norm_factor)
+
     def test_schedule_spreads_across_sites_by_e_and_capacity(self):
         policy = ReplayCarbonPolicy()
         sites = {

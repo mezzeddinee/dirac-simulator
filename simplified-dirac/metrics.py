@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import List
 
 try:
@@ -22,6 +23,7 @@ def print_summary(done_jobs: List[Job]) -> None:
     waits: List[float] = []
     turns: List[float] = []
     carbons: List[float] = []
+    site_counts: Counter[str] = Counter()
 
     for j in done_jobs:
         if j.start_time is not None:
@@ -29,6 +31,8 @@ def print_summary(done_jobs: List[Job]) -> None:
         if j.finish_time is not None:
             turns.append((j.finish_time - j.submit_time).total_seconds() / 60.0)
         carbons.append(j.carbon_kg)
+        if j.site:
+            site_counts[j.site] += 1
 
     waits.sort()
     turns.sort()
@@ -50,3 +54,6 @@ def print_summary(done_jobs: List[Job]) -> None:
     print("- Turnaround = finish_time - submit_time (wait + execution), in minutes.")
     print("- p50/p90/p95/p99 are percentile cutoffs over completed jobs.")
     print("- Average carbon/job is the mean simulated job emissions in kgCO2.")
+    print("Jobs executed per site:")
+    for site, count in sorted(site_counts.items()):
+        print(f"- {site}: {count}")

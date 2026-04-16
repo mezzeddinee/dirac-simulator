@@ -36,7 +36,7 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
         token=token,
     )
     logger.info("ci provider configured conf=%s", conf_path)
-    green = int(os.getenv("SIMULATOR_GREEN", "0"))
+    green = int(os.getenv("SIMULATOR_GREEN", "1"))
     policy = ReplayCarbonPolicy(green=green)
     logger.info("policy configured green=%d", green)
 

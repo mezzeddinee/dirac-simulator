@@ -10,8 +10,14 @@ Simplified first version of the simulator:
 ## Input Files
 
 - `sites.csv`: site capacity and characteristics. `max_running_jobs` is supported; if missing, loader falls back to `max_pilots`.
-- `jobs.csv`: `job_id,submit_time,norm_cpu_seconds,cores_used`.
-  Runtime is derived at match time from `norm_cpu_seconds`, `perf_hs06`, and `avg_wallclock_cpu_ratio`.
+- `jobs.csv` / `trace.csv`:
+  - base fields: `job_id,submit_time,norm_cpu_seconds,cores_used`
+  - runtime-related fields: `wallclock` and `CPUNormFactor`
+  - supported header aliases from DIRAC traces:
+    - `wallclock` / `wallclocktime` / `WallClockTime` / `WallClockTime(s)`
+    - `CPUNormFactor` / `CPUNormalizationFactor` / `cpunormlazationfactor`
+    - `norm_cpu_seconds` / `cpu_seconds` / `NormCPUTime(s)`
+  - if only `runtime_min` is present, wallclock seconds are derived as `runtime_min * 60`
 - `cim.conf`: CI provider configuration (CIM/KPI endpoints and defaults).
 
 ## Step Flow (1 minute per tick)
@@ -24,7 +30,10 @@ Simplified first version of the simulator:
 - Simulator starts up to `k` waiting jobs on each site, limited by `available_slots()`.
 - For each started job:
   - state becomes `running`
-  - site-specific runtime is derived from `norm_cpu_seconds`, `perf_hs06`, and `avg_wallclock_cpu_ratio`
+  - site-specific runtime is derived from job parameters and site performance:
+    - `cpu_seconds_sim = norm_cpu_seconds / perf_hs06`
+    - `wallclock_seconds_sim = (wallclock * cpu_norm_factor) / perf_hs06`
+    - `runtime_min = ceil(wallclock_seconds_sim / 60)`
   - total energy is computed
   - CI is fixed at runtime midpoint via `MidpointCIProvider`
   - carbon is computed once: `carbon_kg = total_energy_kwh * ci / 1000`
@@ -55,5 +64,4 @@ SIMULATOR_GREEN=1 python3 main.py
 # Non-green mode (randomized site ordering)
 SIMULATOR_GREEN=0 python3 main.py
 ```
-
 

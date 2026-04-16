@@ -32,6 +32,8 @@ def make_job(job_id: str, submit: datetime) -> Job:
         submit_time=submit,
         norm_cpu_seconds=90.0,
         cores_used=1,
+        wallclock=90,
+        cpu_norm_factor=1,
     )
 
 
@@ -51,7 +53,7 @@ class SimulatorTests(unittest.TestCase):
         sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 
         energy = sim.compute_energy_kwh(job, site)
-        # derived wallclock=max(cpu,60)=90
+        # derived wallclock=job.wallclock*job.cpu_norm_factor/perf=90
         # E=((1-f)*90 + f*90) * (1/24) * 180 / 3_600_000 = 0.0001875
         self.assertAlmostEqual(0.0001875, energy, places=9)
 

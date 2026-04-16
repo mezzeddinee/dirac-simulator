@@ -11,6 +11,8 @@ class Job:
     submit_time: datetime
     norm_cpu_seconds: float = 0.0
     cores_used: int = 1
+    wallclock: float = 0.0
+    cpu_norm_factor: float = 1.0
 
     status: str = "pending"  # pending/waiting/running/done
     start_time: Optional[datetime] = None

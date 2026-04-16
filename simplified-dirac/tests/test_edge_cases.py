@@ -36,6 +36,8 @@ def make_job(job_id: str, submit: datetime, norm_cpu_seconds: float = 900.0) -> 
         submit_time=submit,
         norm_cpu_seconds=norm_cpu_seconds,
         cores_used=1,
+        wallclock=int(norm_cpu_seconds),
+        cpu_norm_factor=1,
     )
 
 
@@ -164,8 +166,7 @@ class EdgeCaseTests(unittest.TestCase):
 
         site_ok = make_site("SARA", cores=24)
         job_zero_norm = make_job("J2", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=0.0)
-        # wallclock is floored to 60s, so with norm=0 this is still finite and >0.
-        self.assertGreater(sim.compute_energy_kwh(job_zero_norm, site_ok), 0.0)
+        self.assertEqual(0.0, sim.compute_energy_kwh(job_zero_norm, site_ok))
 
         site_zero_perf = make_site("SARA", cores=24)
         site_zero_perf.perf_hs06 = 0.0
@@ -183,17 +184,16 @@ class EdgeCaseTests(unittest.TestCase):
         self.assertEqual("waiting", j_now.status)
         self.assertEqual("pending", j_later.status)
 
-    def test_runtime_derivation_uses_site_wallclock_cpu_ratio(self):
+    def test_runtime_derivation_uses_job_wallclock_and_site_perf(self):
         site = make_site("SARA")
         site.perf_hs06 = 2.0
-        site.avg_wallclock_cpu_ratio = 1.5
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=600.0)
         sim = ReplaySimulator(sites={"SARA": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 
         cpu_s, wall_s, runtime_m = sim.derive_job_runtime_for_site(job, site)
         self.assertEqual(300.0, cpu_s)   # 600 / 2.0
-        self.assertEqual(450.0, wall_s)  # 300 * 1.5
-        self.assertEqual(8, runtime_m)   # ceil(450/60) = 8
+        self.assertEqual(300.0, wall_s)  # 600 * 1 / 2.0
+        self.assertEqual(5, runtime_m)   # ceil(300/60) = 5
 
 
 if __name__ == "__main__":

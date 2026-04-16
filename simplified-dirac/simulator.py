@@ -79,14 +79,8 @@ class ReplaySimulator:
             return 0.0, 0.0, 0
         cpu_seconds_sim = float(job.norm_cpu_seconds) / perf
 
-        # avg_wallclock_cpu_ratio approximates site-level slowdown/overhead:
-        # wallclock ~= cpu_seconds * ratio.
-        wc_ratio = float(site.avg_wallclock_cpu_ratio)
-        if wc_ratio <= 0.0:
-            wc_ratio = 1.0
-
-        # Enforce minimum 60s wallclock so derived runtime is never below one tick.
-        wallclock_seconds_sim = max(cpu_seconds_sim * wc_ratio, 60.0)
+        # Derive wallclock from job metadata and site performance.
+        wallclock_seconds_sim = (float(job.wallclock) * float(job.cpu_norm_factor)) / perf
         runtime_min_sim = max(1, int(math.ceil(wallclock_seconds_sim / 60.0)))
         return cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim
 
