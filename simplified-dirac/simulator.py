@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
+from collections import deque
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 try:
     from .models import Job, Site
@@ -25,7 +26,11 @@ class ReplaySimulator:
         ci_provider: Any = None,
     ):
         self.sites = sites
-        self.pending_jobs = sorted(jobs, key=lambda j: j.submit_time)
+        self.pending_jobs = sorted(jobs, key=lambda j: (j.submit_time, j.job_id))
+        self.pending_index = 0
+        self.waiting_queue: Deque[Job] = deque()
+        self.total_jobs = len(self.pending_jobs)
+        self.done_count = sum(1 for j in self.pending_jobs if j.status == "done")
         self.policy = policy or ReplayCarbonPolicy()
         self.ci_provider = ci_provider
         if self.ci_provider is None:
@@ -42,7 +47,17 @@ class ReplaySimulator:
         )
 
     def waiting_jobs(self) -> List[Job]:
-        return [j for j in self.pending_jobs if j.status == "waiting"]
+        self._bootstrap_waiting_queue_if_needed()
+        return list(self.waiting_queue)
+
+    def _bootstrap_waiting_queue_if_needed(self) -> None:
+        # Compatibility path: if callers mark jobs as waiting externally
+        # (e.g. tests), rebuild queue only when empty.
+        if self.waiting_queue:
+            return
+        for j in self.pending_jobs:
+            if j.status == "waiting":
+                self.waiting_queue.append(j)
 
     def active_jobs(self) -> int:
         return sum(len(s.running_jobs) for s in self.sites.values())
@@ -51,10 +66,15 @@ class ReplaySimulator:
         # Check all jobs that are not released yet.
         # If their submit time is now, put them in the waiting queue.
         released = 0
-        for j in self.pending_jobs:
-            if j.status == "pending" and j.submit_time <= self.current_time:
+        while self.pending_index < self.total_jobs:
+            j = self.pending_jobs[self.pending_index]
+            if j.submit_time > self.current_time:
+                break
+            if j.status == "pending":
                 j.activate()
+                self.waiting_queue.append(j)
                 released += 1
+            self.pending_index += 1
         if released:
             logger.info("release t=%s jobs=%d", self.current_time.isoformat(), released)
 
@@ -99,8 +119,9 @@ class ReplaySimulator:
         return energy_joule / 3_600_000.0
 
     def step_match(self) -> None:
-        # Take waiting jobs in a stable order (oldest first, then by id).
-        waiting = sorted(self.waiting_jobs(), key=lambda j: (j.submit_time, j.job_id))
+        self._bootstrap_waiting_queue_if_needed()
+        # Waiting queue is already in stable submit order.
+        waiting = list(self.waiting_queue)
         # Ask the policy which site should take how many jobs now.
         submissions = self.policy.schedule(waiting, self.sites)
         if submissions:
@@ -111,7 +132,10 @@ class ReplaySimulator:
             quota = k
 
             # Start up to "quota" jobs on this site.
-            for picked in list(waiting[:quota]):
+            for _ in range(quota):
+                if not self.waiting_queue:
+                    break
+                picked = self.waiting_queue.popleft()
                 # Mark job as running and stamp start metadata.
                 picked.status = "running"
                 picked.start_time = self.current_time
@@ -128,7 +152,6 @@ class ReplaySimulator:
                 picked.carbon_kg = (picked.total_energy_kwh * picked.assigned_ci_gco2_per_kwh) / 1000.0
                 # Put job into site's running list and remove it from waiting list.
                 site.running_jobs.append(picked)
-                waiting.remove(picked)
                 logger.debug("start job=%s site=%s rt=%d", picked.job_id, site.name, picked.assigned_runtime_min)
 
     def step_execute(self) -> None:
@@ -144,6 +167,7 @@ class ReplaySimulator:
                 job.status = "done"
                 job.finish_time = self.current_time + self.tick
                 self.done_jobs.append(job)
+                self.done_count += 1
                 site.running_jobs.remove(job)
                 finished += 1
         if finished:
@@ -161,6 +185,6 @@ class ReplaySimulator:
         self.current_time += self.tick
 
     def done(self) -> bool:
-        all_jobs_done = all(j.status == "done" for j in self.pending_jobs)
+        all_jobs_done = self.done_count == self.total_jobs
         no_active = self.active_jobs() == 0
         return all_jobs_done and no_active

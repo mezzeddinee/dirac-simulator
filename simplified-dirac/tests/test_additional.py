@@ -130,7 +130,7 @@ class AdditionalTests(unittest.TestCase):
         sim.step()  # release + match + execute one minute
         self.assertTrue(sim.done())   # job completed and no active jobs
 
-    def test_ci_provider_evicts_older_bucket_for_same_site(self):
+    def test_ci_provider_keeps_multiple_buckets_until_ttl(self):
         provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example")
 
         with patch("ci_provider.requests.post", side_effect=[_Resp(111.0), _Resp(222.0)]):
@@ -140,9 +140,9 @@ class AdditionalTests(unittest.TestCase):
         old_key = ("SARA", datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc))
         new_key = ("SARA", datetime(2026, 1, 1, 10, 30, 0, tzinfo=timezone.utc))
 
-        self.assertNotIn(old_key, provider.cache)
+        self.assertIn(old_key, provider.cache)
         self.assertIn(new_key, provider.cache)
-        self.assertEqual(1, len(provider.cache))
+        self.assertEqual(2, len(provider.cache))
 
 
 if __name__ == "__main__":

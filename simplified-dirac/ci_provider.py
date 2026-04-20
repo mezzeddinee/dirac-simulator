@@ -41,12 +41,9 @@ class MidpointCIProvider:
         self.cache: Dict[Tuple[str, datetime], Tuple[float, float]] = {}
 
     def _cache_set(self, site_name: str, bucket: datetime, ci: float) -> None:
-        # Forward-only simulation: keep only the latest bucket per site.
-        stale = [k for k in self.cache if k[0] == site_name and k[1] < bucket]
-        for k in stale:
-            del self.cache[k]
+        # Keep per-bucket values and rely on TTL expiration in _cache_get.
         self.cache[(site_name, bucket)] = (ci, time.time())
-        logger.info("ci cache set site=%s bucket=%s ci=%.3f stale=%d", site_name, bucket.isoformat(), ci, len(stale))
+        logger.info("ci cache set site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci)
 
     def _cache_get(self, site_name: str, bucket: datetime) -> Optional[float]:
         key = (site_name, bucket)
@@ -162,7 +159,7 @@ class MidpointCIProvider:
         bucket = self._hour_bucket(midpoint_ts)
         ci_cached = self._cache_get(site_name, bucket)
         if ci_cached is not None:
-            logger.info("ci cache hit site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci_cached)
+            logger.debug("ci cache hit site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci_cached)
             return ci_cached
 
         if latitude is None or longitude is None:
