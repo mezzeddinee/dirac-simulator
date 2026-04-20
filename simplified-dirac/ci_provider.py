@@ -25,6 +25,7 @@ class MidpointCIProvider:
         fallback_ci: float = 300.0,
         timeout_s: float = 5.0,
         token_max_age_h: float = 24.0,
+        ci_cache_ttl_s: float = 3600.0,
     ):
         self.token = token
         self._token_ts: Optional[float] = None
@@ -36,15 +37,37 @@ class MidpointCIProvider:
         self.fallback_ci = fallback_ci
         self.timeout_s = timeout_s
         self.token_max_age_h = token_max_age_h
-        self.cache: Dict[Tuple[str, datetime], float] = {}
+        self.ci_cache_ttl_s = ci_cache_ttl_s
+        self.cache: Dict[Tuple[str, datetime], Tuple[float, float]] = {}
 
     def _cache_set(self, site_name: str, bucket: datetime, ci: float) -> None:
         # Forward-only simulation: keep only the latest bucket per site.
         stale = [k for k in self.cache if k[0] == site_name and k[1] < bucket]
         for k in stale:
             del self.cache[k]
-        self.cache[(site_name, bucket)] = ci
+        self.cache[(site_name, bucket)] = (ci, time.time())
         logger.info("ci cache set site=%s bucket=%s ci=%.3f stale=%d", site_name, bucket.isoformat(), ci, len(stale))
+
+    def _cache_get(self, site_name: str, bucket: datetime) -> Optional[float]:
+        key = (site_name, bucket)
+        cached = self.cache.get(key)
+        if cached is None:
+            return None
+
+        ci, cached_ts = cached
+        age_s = time.time() - cached_ts
+        if age_s <= self.ci_cache_ttl_s:
+            return ci
+
+        del self.cache[key]
+        logger.info(
+            "ci cache expired site=%s bucket=%s age_s=%.1f ttl_s=%.1f",
+            site_name,
+            bucket.isoformat(),
+            age_s,
+            self.ci_cache_ttl_s,
+        )
+        return None
 
     @classmethod
     def from_config(
@@ -62,6 +85,7 @@ class MidpointCIProvider:
         fallback_ci = cfg.getfloat("Defaults", "CI", fallback=300.0)
         ci_timeout_s = cfg.getfloat("Runtime", "CI_TIMEOUT_S", fallback=5.0)
         token_max_age_h = cfg.getfloat("Runtime", "TOKEN_MAX_AGE_H", fallback=24.0)
+        ci_cache_ttl_s = cfg.getfloat("Runtime", "CACHE_TTL", fallback=3600.0)
         return cls(
             token=token,
             kpi_api_base=kpi_api_base,
@@ -72,6 +96,7 @@ class MidpointCIProvider:
             fallback_ci=fallback_ci,
             timeout_s=ci_timeout_s,
             token_max_age_h=token_max_age_h,
+            ci_cache_ttl_s=ci_cache_ttl_s,
         )
 
     def _get_token(self) -> Optional[str]:
@@ -135,9 +160,8 @@ class MidpointCIProvider:
         longitude: Optional[float],
     ) -> float:
         bucket = self._hour_bucket(midpoint_ts)
-        key = (site_name, bucket)
-        if key in self.cache:
-            ci_cached = self.cache[key]
+        ci_cached = self._cache_get(site_name, bucket)
+        if ci_cached is not None:
             logger.info("ci cache hit site=%s bucket=%s ci=%.3f", site_name, bucket.isoformat(), ci_cached)
             return ci_cached
 

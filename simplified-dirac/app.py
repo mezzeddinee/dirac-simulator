@@ -20,13 +20,13 @@ except ImportError:  # direct script-style execution fallback
 logger = logging.getLogger(__name__)
 
 
-def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
+def run(base: Path, tick_minutes: int = 1) -> None:
     if not logging.getLogger().handlers:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-    logger.info("run start base=%s tick=%d guard=%d", base, tick_minutes, guard_steps)
+    logger.info("run start base=%s tick=%d", base, tick_minutes)
     sites = load_sites(base / "sites.csv")
-    jobs = load_jobs(base / "trace.csv")
+    jobs = load_jobs(base / "trace2")
     logger.info("input loaded sites=%d jobs=%d", len(sites), len(jobs))
 
     conf_path = base / "cim.conf"
@@ -49,9 +49,22 @@ def run(base: Path, tick_minutes: int = 1, guard_steps: int = 20000) -> None:
     )
 
     steps = 0
-    while not sim.done() and steps < guard_steps:
+    heartbeat_every = 1000
+    while not sim.done():
         sim.step()
         steps += 1
+        if steps % heartbeat_every == 0:
+            waiting = len(sim.waiting_jobs())
+            active = sim.active_jobs()
+            done = len(sim.done_jobs)
+            logger.info(
+                "heartbeat steps=%d t=%s waiting=%d active=%d done=%d",
+                steps,
+                sim.current_time.isoformat(),
+                waiting,
+                active,
+                done,
+            )
 
     logger.info("run done steps=%d done_jobs=%d", steps, len(sim.done_jobs))
     print_summary(sim.done_jobs)

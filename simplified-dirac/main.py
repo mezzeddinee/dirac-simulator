@@ -7,7 +7,7 @@ except ImportError:  # direct script-style execution fallback
 
 
 def main() -> None:
-    run(base=Path(__file__).resolve().parent, tick_minutes=1, guard_steps=20000)
+    run(base=Path(__file__).resolve().parent, tick_minutes=1)
 
 
 if __name__ == "__main__":
