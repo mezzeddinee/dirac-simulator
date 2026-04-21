@@ -38,7 +38,6 @@ def load_sites(path: Path) -> Dict[str, Site]:
                 avg_tdp_w=float(row.get("avg_tdp_w", 150.0)),
                 avg_total_cores=float(row.get("avg_total_cores", 12.0)),
                 perf_hs06=float(row.get("perf_hs06", 1.0)),
-                avg_wallclock_cpu_ratio=float(row.get("avg_wallclock_cpu_ratio", 1.0)),
             )
     logger.info("sites loaded path=%s count=%d", path, len(sites))
     return sites

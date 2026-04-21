@@ -27,7 +27,6 @@ def make_site(name: str, max_running_jobs: int = 2, e_fixed: float = 0.5) -> Sit
         avg_tdp_w=180.0,
         avg_total_cores=24,
         perf_hs06=1.0,
-        avg_wallclock_cpu_ratio=1.0,
     )
 
 

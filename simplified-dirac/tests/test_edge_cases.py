@@ -26,7 +26,6 @@ def make_site(name: str, cores: int = 24, tdp: float = 180.0) -> Site:
         avg_tdp_w=tdp,
         avg_total_cores=cores,
         perf_hs06=1.0,
-        avg_wallclock_cpu_ratio=1.0,
     )
 
 

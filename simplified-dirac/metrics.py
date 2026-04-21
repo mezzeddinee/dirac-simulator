@@ -23,6 +23,7 @@ def print_summary(done_jobs: List[Job]) -> None:
     waits: List[float] = []
     turns: List[float] = []
     carbons: List[float] = []
+    total_norm_cpu_seconds = 0.0
     site_counts: Counter[str] = Counter()
 
     for j in done_jobs:
@@ -31,13 +32,21 @@ def print_summary(done_jobs: List[Job]) -> None:
         if j.finish_time is not None:
             turns.append((j.finish_time - j.submit_time).total_seconds() / 60.0)
         carbons.append(j.carbon_kg)
+        total_norm_cpu_seconds += j.norm_cpu_seconds
         if j.site:
             site_counts[j.site] += 1
 
     waits.sort()
     turns.sort()
+    total_carbon = sum(carbons)
     avg_carbon = sum(carbons) / len(carbons) if carbons else 0.0
-    logger.info("summary jobs=%d avg_carbon=%.8f", len(done_jobs), avg_carbon)
+    logger.info(
+        "summary jobs=%d avg_carbon=%.8f total_carbon=%.8f total_norm_cpu_seconds=%.2f",
+        len(done_jobs),
+        avg_carbon,
+        total_carbon,
+        total_norm_cpu_seconds,
+    )
 
     print(f"Completed jobs: {len(done_jobs)}")
     print(
@@ -48,6 +57,8 @@ def print_summary(done_jobs: List[Job]) -> None:
         "Turnaround min p50/p90/p95/p99:",
         f"{percentile(turns,0.50):.6f}/{percentile(turns,0.90):.6f}/{percentile(turns,0.95):.6f}/{percentile(turns,0.99):.6f}",
     )
+    print(f"Total CFP (kgCO2): {total_carbon:.8f}")
+    print(f"Total normalized CPU (s): {total_norm_cpu_seconds:.2f}")
     print(f"Average carbon/job (kgCO2): {avg_carbon:.8f}")
     print("Notes:")
     print("- Wait = start_time - submit_time (queue delay), in minutes.")

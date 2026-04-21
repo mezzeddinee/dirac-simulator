@@ -41,7 +41,6 @@ class Site:
     avg_tdp_w: float
     avg_total_cores: int
     perf_hs06: float
-    avg_wallclock_cpu_ratio: float
     running_jobs: list[Job] = field(default_factory=list)
 
     def available_slots(self) -> int:

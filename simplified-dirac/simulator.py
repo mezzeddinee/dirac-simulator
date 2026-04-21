@@ -39,6 +39,9 @@ class ReplaySimulator:
         self.current_time = min(j.submit_time for j in jobs)
         self.done_jobs: List[Job] = []
         self.idle_consumption_factor = 0.4
+        self.waiting_history: List[Tuple[datetime, int]] = []
+        self.submissions_history: List[Tuple[datetime, Dict[str, int]]] = []
+        self.running_history: List[Tuple[datetime, Dict[str, int]]] = []
         logger.info(
             "sim init sites=%d jobs=%d tick_min=%d",
             len(self.sites),
@@ -61,6 +64,9 @@ class ReplaySimulator:
 
     def active_jobs(self) -> int:
         return sum(len(s.running_jobs) for s in self.sites.values())
+
+    def running_jobs_by_site(self) -> Dict[str, int]:
+        return {name: len(site.running_jobs) for name, site in sorted(self.sites.items())}
 
     def release_jobs(self) -> None:
         # Check all jobs that are not released yet.
@@ -122,8 +128,10 @@ class ReplaySimulator:
         self._bootstrap_waiting_queue_if_needed()
         # Waiting queue is already in stable submit order.
         waiting = list(self.waiting_queue)
+        self.waiting_history.append((self.current_time, len(waiting)))
         # Ask the policy which site should take how many jobs now.
         submissions = self.policy.schedule(waiting, self.sites)
+        self.submissions_history.append((self.current_time, {site: k for site, k in submissions}))
         if submissions:
             logger.info("match t=%s waiting=%d submissions=%s", self.current_time.isoformat(), len(waiting), submissions)
 
@@ -181,6 +189,8 @@ class ReplaySimulator:
         self.step_match()
         # STEP 3: Execute one tick and finish jobs that reached 0 time left.
         self.step_execute()
+        # Snapshot running jobs per site for reporting.
+        self.running_history.append((self.current_time, self.running_jobs_by_site()))
         # STEP 4: Move clock forward by one tick (usually 1 minute).
         self.current_time += self.tick
 

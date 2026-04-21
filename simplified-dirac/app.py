@@ -9,12 +9,14 @@ try:
     from .csv_io import load_jobs, load_sites
     from .metrics import print_summary
     from .policy import ReplayCarbonPolicy
+    from .report_plots import save_report_plots
     from .simulator import ReplaySimulator
 except ImportError:  # direct script-style execution fallback
     from ci_provider import MidpointCIProvider
     from csv_io import load_jobs, load_sites
     from metrics import print_summary
     from policy import ReplayCarbonPolicy
+    from report_plots import save_report_plots
     from simulator import ReplaySimulator
 
 logger = logging.getLogger(__name__)
@@ -68,3 +70,4 @@ def run(base: Path, tick_minutes: int = 1) -> None:
 
     logger.info("run done steps=%d done_jobs=%d", steps, len(sim.done_jobs))
     print_summary(sim.done_jobs)
+    save_report_plots(sim, out_dir=base / "plots")
