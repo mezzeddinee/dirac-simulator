@@ -146,8 +146,7 @@ class MidpointCIProvider:
             ts = ts.replace(tzinfo=timezone.utc)
         else:
             ts = ts.astimezone(timezone.utc)
-        minute_bucket = 0 if ts.minute < 30 else 30
-        return ts.replace(minute=minute_bucket, second=0, microsecond=0)
+        return ts.replace(minute=0, second=0, microsecond=0)
 
     def get_ci(
         self,

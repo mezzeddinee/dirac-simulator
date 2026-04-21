@@ -76,17 +76,17 @@ class DummyCIProvider:
 
 
 class EdgeCaseTests(unittest.TestCase):
-    def test_ci_provider_half_hour_bucket_cache(self):
+    def test_ci_provider_hour_bucket_cache(self):
         provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example")
 
         with patch("ci_provider.requests.post", side_effect=[_Resp(111.0), _Resp(222.0)]) as post:
             ci1 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), 52.0, 4.0)
             ci2 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 25, 0), 52.0, 4.0)
-            ci3 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 35, 0), 52.0, 4.0)
+            ci3 = provider.get_ci("SARA", datetime(2026, 1, 1, 11, 5, 0), 52.0, 4.0)
 
         self.assertEqual(111.0, ci1)
-        self.assertEqual(111.0, ci2)  # same half-hour bucket -> cache hit
-        self.assertEqual(222.0, ci3)  # next half-hour bucket -> new HTTP call
+        self.assertEqual(111.0, ci2)  # same hour bucket -> cache hit
+        self.assertEqual(222.0, ci3)  # next hour bucket -> new HTTP call
         self.assertEqual(2, post.call_count)
 
     def test_ci_provider_missing_coords_uses_fallback_without_http(self):

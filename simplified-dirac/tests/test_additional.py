@@ -135,10 +135,10 @@ class AdditionalTests(unittest.TestCase):
 
         with patch("ci_provider.requests.post", side_effect=[_Resp(111.0), _Resp(222.0)]):
             provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), 52.0, 4.0)   # 10:00 bucket
-            provider.get_ci("SARA", datetime(2026, 1, 1, 10, 35, 0), 52.0, 4.0)  # 10:30 bucket
+            provider.get_ci("SARA", datetime(2026, 1, 1, 11, 5, 0), 52.0, 4.0)   # 11:00 bucket
 
         old_key = ("SARA", datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc))
-        new_key = ("SARA", datetime(2026, 1, 1, 10, 30, 0, tzinfo=timezone.utc))
+        new_key = ("SARA", datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc))
 
         self.assertIn(old_key, provider.cache)
         self.assertIn(new_key, provider.cache)
