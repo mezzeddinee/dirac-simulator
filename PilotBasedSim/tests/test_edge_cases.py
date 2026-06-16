@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
+from requests.exceptions import HTTPError
 import sys
 
 # Allow running tests from any cwd (IDE or CLI).
@@ -70,16 +71,23 @@ class EdgeCaseTests(unittest.TestCase):
         self.assertEqual(222.0, ci3)  # next half-hour bucket -> new HTTP call
         self.assertEqual(2, post.call_count)
 
-    def test_ci_provider_missing_coords_uses_fallback_without_http(self):
+    def test_ci_provider_missing_coords_reuses_cached_ci_without_http(self):
         provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example", fallback_ci=333.0)
+        provider._cache_set("SARA", provider._hour_bucket(datetime(2026, 1, 1, 9, 0, 0)), 222.0)
 
         with patch("ci_provider.requests.post") as post:
             ci1 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), None, None)
             ci2 = provider.get_ci("SARA", datetime(2026, 1, 1, 10, 10, 0), None, None)
 
-        self.assertEqual(333.0, ci1)
-        self.assertEqual(333.0, ci2)
+        self.assertEqual(222.0, ci1)
+        self.assertEqual(222.0, ci2)
         self.assertEqual(0, post.call_count)
+
+    def test_ci_provider_request_error_without_cache_raises(self):
+        provider = MidpointCIProvider(token="t", kpi_api_base="https://kpi.example", fallback_ci=333.0)
+        with patch("ci_provider.requests.post", side_effect=HTTPError("kpi down")):
+            with self.assertRaises(RuntimeError):
+                provider.get_ci("SARA", datetime(2026, 1, 1, 10, 5, 0), 52.0, 4.0)
 
     def test_policy_schedule_no_compatible_site_returns_empty(self):
         policy = ReplayCarbonPolicy()

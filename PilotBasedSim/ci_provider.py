@@ -42,6 +42,13 @@ class MidpointCIProvider:
             del self.cache[k]
         self.cache[(site_name, bucket)] = ci
 
+    def _latest_cached_ci_for_site(self, site_name: str) -> Optional[float]:
+        site_entries = [(bucket, ci) for (name, bucket), ci in self.cache.items() if name == site_name]
+        if not site_entries:
+            return None
+        site_entries.sort(key=lambda x: x[0])
+        return site_entries[-1][1]
+
     @classmethod
     def from_config(
         cls,
@@ -119,10 +126,15 @@ class MidpointCIProvider:
         key = (site_name, bucket)
         if key in self.cache:
             return self.cache[key]
+        ci_stale = self._latest_cached_ci_for_site(site_name)
 
         if latitude is None or longitude is None:
-            self._cache_set(site_name, bucket, self.fallback_ci)
-            return self.fallback_ci
+            if ci_stale is not None:
+                self._cache_set(site_name, bucket, ci_stale)
+                return ci_stale
+            raise RuntimeError(
+                f"No cached CI available for site={site_name}; cannot compute CI without coordinates."
+            )
 
         start = bucket.isoformat().replace("+00:00", "Z")
         end = (bucket + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
@@ -150,13 +162,20 @@ class MidpointCIProvider:
             )
             resp.raise_for_status()
             data = resp.json()
-            ci = float(data.get("ci_gco2_per_kwh", self.fallback_ci))
+            if "ci_gco2_per_kwh" not in data:
+                raise ValueError("ci_gco2_per_kwh missing in KPI response")
+            ci = float(data["ci_gco2_per_kwh"])
         except (
             requests.exceptions.RequestException,
             ValueError,
             json.JSONDecodeError,
-        ):
-            ci = self.fallback_ci
+        ) as exc:
+            if ci_stale is not None:
+                self._cache_set(site_name, bucket, ci_stale)
+                return ci_stale
+            raise RuntimeError(
+                f"CI request failed for site={site_name} bucket={bucket.isoformat()} and no cached CI exists."
+            ) from exc
 
         self._cache_set(site_name, bucket, ci)
         return ci

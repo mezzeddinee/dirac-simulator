@@ -1,0 +1,4 @@
+trace/.venv/
+
+trace/__pycache__/
+*.pyc

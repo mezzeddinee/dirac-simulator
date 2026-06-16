@@ -1,0 +1,73 @@
+# simplified dirac2 simulation
+
+Simplified first version of the simulator:
+- No pilot objects.
+- Jobs are assigned directly to sites.
+- Each site has a max number of concurrent running jobs (`max_running_jobs`).
+- Site ranking is based directly on `greenscore` (`e_fixed`).
+- No tag-based compatibility filtering: any waiting job can run on any site.
+- This copy supports fractional green scheduling instead of only green/non-green.
+
+## Input Files
+
+- `sites.csv`: site capacity and characteristics. `max_running_jobs` is supported; if missing, loader falls back to `max_pilots`.
+- `jobs.csv` / `trace.csv`:
+  - base fields: `job_id,submit_time,norm_cpu_seconds,cores_used`
+  - runtime-related fields: `wallclock` and `CPUNormFactor`
+  - supported header aliases from DIRAC traces:
+    - `wallclock` / `wallclocktime` / `WallClockTime` / `WallClockTime(s)`
+    - `CPUNormFactor` / `CPUNormalizationFactor` / `cpunormlazationfactor`
+    - `norm_cpu_seconds` / `cpu_seconds` / `NormCPUTime(s)`
+  - if only `runtime_min` is present, wallclock seconds are derived as `runtime_min * 60`
+- `cim.conf`: CI provider configuration (CIM/KPI endpoints and defaults).
+
+## Step Flow (1 minute per tick)
+
+1. `release_jobs()`
+- Move jobs from `pending` to `waiting` when `submit_time <= current_time`.
+
+2. `step_match()`
+- Policy computes unmet waiting demand and returns `(site, k)` submissions.
+- Simulator starts up to `k` waiting jobs on each site, limited by `available_slots()`.
+- For each started job:
+  - state becomes `running`
+  - site-specific runtime is derived from job parameters and site performance:
+    - `cpu_seconds_sim = norm_cpu_seconds / perf_hs06`
+    - `wallclock_seconds_sim = (wallclock * cpu_norm_factor) / perf_hs06`
+    - `runtime_min = ceil(wallclock_seconds_sim / 60)`
+  - total energy is computed
+  - CI is fixed at runtime midpoint via `MidpointCIProvider`
+  - carbon is computed once: `carbon_kg = total_energy_kwh * ci / 1000`
+
+3. `step_execute()`
+- Decrement `remaining_min` for each running job.
+- Completed jobs move to `done` with `finish_time` set.
+
+4. Advance time by one tick.
+
+## Policy
+
+- Unmet demand is computed against currently free site slots.
+- `green_fraction` controls site ordering:
+  - `1.0` or `100`: all schedulable jobs use green ranking by `greenscore = e_fixed` descending.
+  - `0.0` or `0`: all schedulable jobs use randomized site order.
+  - values between `0.0` and `1.0` reserve that fraction of schedulable jobs for green ranking, then place the remaining jobs with randomized site order.
+- Runtime switch is done with `SIMULATOR_GREEN_FRACTION` (default is `1`).
+- Sweep mode is done with `SIMULATOR_GREEN_FRACTIONS`, a comma-separated list such as `0,20,40,60,70,90,100`.
+
+## Run
+
+```bash
+cd /home/mezzeddi/PycharmProjects/testsim/dirac-simulator/simplified-dirac2
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+# Fully green mode (score-based ranking)
+SIMULATOR_GREEN_FRACTION=1 python3 main.py
+# Fully non-green mode (randomized site ordering)
+SIMULATOR_GREEN_FRACTION=0 python3 main.py
+# Mixed mode, 50% green-ranked and 50% randomized
+SIMULATOR_GREEN_FRACTION=50 python3 main.py
+# Table sweep
+SIMULATOR_GREEN_FRACTIONS=0,20,40,60,70,90,100 python3 main.py
+```

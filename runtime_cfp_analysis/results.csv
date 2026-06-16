@@ -1,0 +1,9 @@
+scenario,runtime_min,throughput_jobs_min,cfp_gco2,p95_turnaround_min,notes
+0% green,1895.83,21.12,10510.00,,fraction sweep baseline
+100% green,2214.60,18.08,6040.00,,fraction sweep baseline
+CPPM only (IN2P3-CPPM),3668.00,10.92,3402.27,1655.12,single-site
+French sites only (CPPM IRES LPC),2394.00,16.72,3317.37,259.43,site subset
+SARA only (SARA-MATRIX),2044.00,19.59,13661.80,782.35,single-site
+RAL only (RAL-LCG2),2773.00,14.44,9593.91,1173.88,single-site
+SARA + NIKHEF,1764.00,22.70,16947.96,263.50,site subset
+SARA + RAL + IRES,2068.00,19.36,9279.28,141.80,site subset
