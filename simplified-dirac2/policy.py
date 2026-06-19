@@ -27,9 +27,9 @@ class ReplayCarbonPolicy:
         self.green = 1 if self.green_fraction >= 1.0 else 0
         self.rng = random.Random(random_seed)
 
-    def estimate_e(self, sites: Dict[str, Site]) -> Dict[str, float]:
-        # E: greenscore proxy per site (higher is better).
-        return {name: s.e_fixed for name, s in sites.items()}
+    def estimate_green(self, sites: Dict[str, Site]) -> Dict[str, float]:
+        # Green score per site (higher is better).
+        return {name: s.green for name, s in sites.items()}
 
     def unmet_jobs(self, waiting_jobs: List[Job], sites: Dict[str, Site]) -> List[Job]:
         slots = {name: s.available_slots() for name, s in sites.items()}
@@ -60,8 +60,8 @@ class ReplayCarbonPolicy:
         schedulable = min(demand, total_slots)
         green_target = min(schedulable, int((schedulable * self.green_fraction) + 0.5))
 
-        e_score = self.estimate_e(sites)
-        green_order = sorted(sites.values(), key=lambda s: e_score[s.name], reverse=True)
+        green_score = self.estimate_green(sites)
+        green_order = sorted(sites.values(), key=lambda s: green_score[s.name], reverse=True)
         random_order = list(sites.values())
         self.rng.shuffle(random_order)
 

@@ -20,7 +20,7 @@ def make_site(name: str, cores: int = 24, tdp: float = 180.0) -> Site:
     return Site(
         name=name,
         max_running_jobs=2,
-        e_fixed=0.5,
+        green=0.5,
         latitude=52.0,
         longitude=4.0,
         avg_tdp_w=tdp,

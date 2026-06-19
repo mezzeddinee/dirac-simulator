@@ -68,17 +68,13 @@ def save_plots(
     x_curve = np.linspace(x_min, x_max, 300)
     power_curve = power_a * (x_curve ** power_b)
 
-    order = np.argsort(runtime)
     fig, ax = plt.subplots(figsize=(13, 8))
-    ax.plot(
-        runtime[order],
-        cfp[order],
+    ax.scatter(
+        runtime,
+        cfp,
+        s=70,
         color="black",
-        linestyle="--",
-        marker="o",
-        markersize=6,
-        linewidth=1.8,
-        label="Actual points connected by runtime",
+        label="Simulation points",
         zorder=5,
     )
     ax.plot(x_curve, power_curve, color="tab:green", linewidth=2.4, label="Power model")

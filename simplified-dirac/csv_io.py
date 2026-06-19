@@ -14,7 +14,7 @@ except ImportError:  # direct script-style execution fallback
 logger = logging.getLogger(__name__)
 
 
-def _first_nonempty(row: Dict[str, str], keys: Tuple[str, ...]) -> str:
+def _first_nonempty(row: Dict[str, str], keys: tuple[str, ...]) -> str:
     for key in keys:
         value = row.get(key)
         if value is not None:
@@ -32,7 +32,7 @@ def load_sites(path: Path) -> Dict[str, Site]:
             sites[name] = Site(
                 name=name,
                 max_running_jobs=int(row.get("max_running_jobs", row.get("max_pilots", 0))),
-                e_fixed=float(row.get("e_fixed", 0.0)),
+                green=float(row.get("green", row.get("e_fixed", 0.0))),
                 latitude=float(row["latitude"]) if row.get("latitude") else None,
                 longitude=float(row["longitude"]) if row.get("longitude") else None,
                 avg_tdp_w=float(row.get("avg_tdp_w", 150.0)),

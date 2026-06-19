@@ -16,9 +16,9 @@ class ReplayCarbonPolicy:
     def __init__(self, green: int = 1):
         self.green = int(green)
 
-    def estimate_e(self, sites: Dict[str, Site]) -> Dict[str, float]:
-        # E: greenscore proxy per site (higher is better).
-        return {name: s.e_fixed for name, s in sites.items()}
+    def estimate_green(self, sites: Dict[str, Site]) -> Dict[str, float]:
+        # Green score per site (higher is better).
+        return {name: s.green for name, s in sites.items()}
 
     def unmet_jobs(self, waiting_jobs: List[Job], sites: Dict[str, Site]) -> List[Job]:
         slots = {name: s.available_slots() for name, s in sites.items()}
@@ -45,9 +45,9 @@ class ReplayCarbonPolicy:
             return []
 
         if self.green == 1:
-            e_score = self.estimate_e(sites)
+            green_score = self.estimate_green(sites)
             # Green mode: rank by greenscore (higher is better).
-            scored = sorted(sites.values(), key=lambda s: e_score[s.name], reverse=True)
+            scored = sorted(sites.values(), key=lambda s: green_score[s.name], reverse=True)
         else:
             # Non-green mode: random site order.
             scored = list(sites.values())

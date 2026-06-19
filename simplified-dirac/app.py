@@ -28,7 +28,7 @@ def run(base: Path, tick_minutes: int = 1) -> None:
 
     logger.info("run start base=%s tick=%d", base, tick_minutes)
     sites = load_sites(base / "sites.csv")
-    jobs = load_jobs(base / "trace6")
+    jobs = load_jobs(base / "june")
     logger.info("input loaded sites=%d jobs=%d", len(sites), len(jobs))
 
     conf_path = base / "cim.conf"

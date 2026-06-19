@@ -12,11 +12,11 @@ from models import Job, Site
 from policy import ReplayCarbonPolicy
 
 
-def make_site(name: str, max_running_jobs: int = 2, e_fixed: float = 0.5) -> Site:
+def make_site(name: str, max_running_jobs: int = 2, green: float = 0.5) -> Site:
     return Site(
         name=name,
         max_running_jobs=max_running_jobs,
-        e_fixed=e_fixed,
+        green=green,
         latitude=0.0,
         longitude=0.0,
         avg_tdp_w=150.0,
@@ -51,8 +51,8 @@ class PolicyTests(unittest.TestCase):
     def test_schedule_places_on_highest_greenscore_site(self):
         policy = ReplayCarbonPolicy()
         sites = {
-            "SARA": make_site("SARA", max_running_jobs=1, e_fixed=0.1),
-            "NIKHEF": make_site("NIKHEF", max_running_jobs=1, e_fixed=0.9),
+            "SARA": make_site("SARA", max_running_jobs=1, green=0.1),
+            "NIKHEF": make_site("NIKHEF", max_running_jobs=1, green=0.9),
         }
         jobs = [make_job("J1")]
 
@@ -62,8 +62,8 @@ class PolicyTests(unittest.TestCase):
     def test_zero_green_fraction_uses_random_site_order(self):
         policy = ReplayCarbonPolicy(green_fraction=0.0, random_seed=0)
         sites = {
-            "LOW": make_site("LOW", max_running_jobs=1, e_fixed=0.1),
-            "HIGH": make_site("HIGH", max_running_jobs=1, e_fixed=0.9),
+            "LOW": make_site("LOW", max_running_jobs=1, green=0.1),
+            "HIGH": make_site("HIGH", max_running_jobs=1, green=0.9),
         }
         jobs = [make_job("J1")]
 
@@ -74,8 +74,8 @@ class PolicyTests(unittest.TestCase):
     def test_fractional_green_splits_between_green_and_random_capacity(self):
         policy = ReplayCarbonPolicy(green_fraction=0.5, random_seed=1)
         sites = {
-            "LOW": make_site("LOW", max_running_jobs=2, e_fixed=0.1),
-            "HIGH": make_site("HIGH", max_running_jobs=2, e_fixed=0.9),
+            "LOW": make_site("LOW", max_running_jobs=2, green=0.1),
+            "HIGH": make_site("HIGH", max_running_jobs=2, green=0.9),
         }
         jobs = [make_job(f"J{i}") for i in range(1, 5)]
 

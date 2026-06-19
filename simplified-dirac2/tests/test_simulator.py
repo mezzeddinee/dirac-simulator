@@ -16,7 +16,7 @@ def make_site(name: str, max_running_jobs: int = 2) -> Site:
     return Site(
         name=name,
         max_running_jobs=max_running_jobs,
-        e_fixed=0.5,
+        green=0.5,
         latitude=52.0,
         longitude=4.0,
         avg_tdp_w=180.0,

@@ -35,7 +35,7 @@ class Job:
 class Site:
     name: str
     max_running_jobs: int
-    e_fixed: float
+    green: float
     latitude: Optional[float]
     longitude: Optional[float]
     avg_tdp_w: float

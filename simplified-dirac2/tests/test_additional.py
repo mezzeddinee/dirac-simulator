@@ -17,11 +17,11 @@ from policy import ReplayCarbonPolicy
 from simulator import ReplaySimulator
 
 
-def make_site(name: str, max_running_jobs: int = 2, e_fixed: float = 0.5) -> Site:
+def make_site(name: str, max_running_jobs: int = 2, green: float = 0.5) -> Site:
     return Site(
         name=name,
         max_running_jobs=max_running_jobs,
-        e_fixed=e_fixed,
+        green=green,
         latitude=52.0,
         longitude=4.0,
         avg_tdp_w=180.0,
@@ -87,9 +87,9 @@ class AdditionalTests(unittest.TestCase):
     def test_schedule_spreads_across_sites_by_e_and_capacity(self):
         policy = ReplayCarbonPolicy()
         sites = {
-            "S1": make_site("S1", max_running_jobs=1, e_fixed=0.1),
-            "S2": make_site("S2", max_running_jobs=2, e_fixed=0.2),
-            "S3": make_site("S3", max_running_jobs=5, e_fixed=0.9),
+            "S1": make_site("S1", max_running_jobs=1, green=0.1),
+            "S2": make_site("S2", max_running_jobs=2, green=0.2),
+            "S3": make_site("S3", max_running_jobs=5, green=0.9),
         }
         jobs = [make_job(f"J{i}", datetime(2026, 1, 1, 0, 0, 0)) for i in range(1, 5)]
 
@@ -98,8 +98,8 @@ class AdditionalTests(unittest.TestCase):
 
     def test_step_match_assigns_fifo_with_site_quotas(self):
         sites = {
-            "S1": make_site("S1", max_running_jobs=1, e_fixed=0.1),
-            "S2": make_site("S2", max_running_jobs=2, e_fixed=0.8),
+            "S1": make_site("S1", max_running_jobs=1, green=0.1),
+            "S2": make_site("S2", max_running_jobs=2, green=0.8),
         }
         jobs = [
             make_job("J2", datetime(2026, 1, 1, 0, 0, 0)),
@@ -119,7 +119,7 @@ class AdditionalTests(unittest.TestCase):
         self.assertEqual(2, len(sites["S2"].running_jobs))
 
     def test_done_is_false_until_jobs_are_done(self):
-        site = make_site("S1", max_running_jobs=1, e_fixed=0.1)
+        site = make_site("S1", max_running_jobs=1, green=0.1)
         job = make_job("J1", datetime(2026, 1, 1, 0, 0, 0), norm_cpu_seconds=30.0)
         sim = ReplaySimulator(sites={"S1": site}, jobs=[job], tick_minutes=1, ci_provider=DummyCIProvider())
 

@@ -4,7 +4,7 @@ Simplified first version of the simulator:
 - No pilot objects.
 - Jobs are assigned directly to sites.
 - Each site has a max number of concurrent running jobs (`max_running_jobs`).
-- Site ranking is based directly on `greenscore` (`e_fixed`).
+- Site ranking is based directly on `greenscore` (`green`).
 - No tag-based compatibility filtering: any waiting job can run on any site.
 
 ## Input Files
@@ -48,8 +48,8 @@ Simplified first version of the simulator:
 
 - Unmet demand is computed against currently free site slots.
 - `green` flag controls site ordering:
-  - `green=1`: rank by `greenscore = e_fixed` (descending, higher is better).
-  - `green=0`: ignore `e_fixed` and shuffle sites randomly before assignment.
+  - `green=1`: rank by `greenscore = green` (descending, higher is better).
+  - `green=0`: ignore `green` and shuffle sites randomly before assignment.
 - Runtime switch is done with `SIMULATOR_GREEN` (default is `1`).
 
 ## Run

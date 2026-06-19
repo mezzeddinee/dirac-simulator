@@ -125,7 +125,8 @@ class ReplaySimulator:
         submissions = self.policy.schedule(waiting, self.sites)
         self.submissions_history.append((self.current_time, {site: k for site, k in submissions}))
         if submissions:
-            logger.info("match t=%s waiting=%d submissions=%s", self.current_time.isoformat(), len(waiting), submissions)
+            logger.info("match t=%s waiting=%d submissions=%s", self.current_time.isoformat(),
+                        len(waiting), submissions)
 
         for site_name, k in submissions:
             site = self.sites[site_name]
@@ -141,7 +142,8 @@ class ReplaySimulator:
                 picked.start_time = self.current_time
                 picked.site = site.name
                 # Compute runtime and energy numbers for this site/job pair.
-                cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim = self.derive_job_runtime_for_site(picked, site)
+                cpu_seconds_sim, wallclock_seconds_sim, runtime_min_sim = self.derive_job_runtime_for_site(picked,
+                                                                                                           site)
                 picked.assigned_cpu_seconds = cpu_seconds_sim
                 picked.assigned_wallclock_seconds = wallclock_seconds_sim
                 picked.assigned_runtime_min = runtime_min_sim
@@ -152,7 +154,8 @@ class ReplaySimulator:
                 picked.carbon_kg = (picked.total_energy_kwh * picked.assigned_ci_gco2_per_kwh) / 1000.0
                 # Put job into site's running list and remove it from waiting list.
                 site.running_jobs.append(picked)
-                logger.debug("start job=%s site=%s rt=%d", picked.job_id, site.name, picked.assigned_runtime_min)
+                logger.debug("start job=%s site=%s rt=%d", picked.job_id,
+                             site.name, picked.assigned_runtime_min)
 
     def step_execute(self) -> None:
         # Run one simulation minute for every running job.

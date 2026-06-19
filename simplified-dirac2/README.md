@@ -4,7 +4,7 @@ Simplified first version of the simulator:
 - No pilot objects.
 - Jobs are assigned directly to sites.
 - Each site has a max number of concurrent running jobs (`max_running_jobs`).
-- Site ranking is based directly on `greenscore` (`e_fixed`).
+- Site ranking is based directly on `greenscore` (`green`).
 - No tag-based compatibility filtering: any waiting job can run on any site.
 - This copy supports fractional green scheduling instead of only green/non-green.
 
@@ -49,7 +49,7 @@ Simplified first version of the simulator:
 
 - Unmet demand is computed against currently free site slots.
 - `green_fraction` controls site ordering:
-  - `1.0` or `100`: all schedulable jobs use green ranking by `greenscore = e_fixed` descending.
+  - `1.0` or `100`: all schedulable jobs use green ranking by `greenscore = green` descending.
   - `0.0` or `0`: all schedulable jobs use randomized site order.
   - values between `0.0` and `1.0` reserve that fraction of schedulable jobs for green ranking, then place the remaining jobs with randomized site order.
 - Runtime switch is done with `SIMULATOR_GREEN_FRACTION` (default is `1`).

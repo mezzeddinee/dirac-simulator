@@ -1,7 +1,2 @@
-site,max_running_jobs,e_fixed,latitude,longitude,avg_tdp_w,avg_total_cores,perf_hs06
-SARA-MATRIX,500,70,52.35623,4.95283,303.40,105.32,28.99
-IN2P3-IRES,500,125,48.605807,7.709943,123.01,15.44,18.01
-RAL-LCG2,500,112,51.57,-1.32,218.11,50.02,21.13
-
-
-
+site,max_running_jobs,green,latitude,longitude,avg_tdp_w,avg_total_cores,perf_hs06
+FZK-LCG2,500,18.31,49.0915,8.4249,199.64,47.45,27.76
